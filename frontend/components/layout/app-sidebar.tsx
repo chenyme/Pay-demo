@@ -156,10 +156,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               <ChevronDown className="size-4 text-muted-foreground ml-auto group-data-[collapsible=icon]:hidden" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-64 space-y-2" align="start" side="bottom" sideOffset={4}>
+          <DropdownMenuContent className="w-64" align="start" side="bottom" sideOffset={4}>
             <DropdownMenuLabel>
-              <div className="flex flex-col items-center gap-2">
-                <Avatar className="size-12 rounded">
+              <div className="flex flex-col items-center mb-4 gap-1">
+                <Avatar className="size-10 rounded">
                   <AvatarImage
                     src={user?.avatar_url}
                     alt={user?.nickname}
