@@ -40,15 +40,22 @@ type TransactionListRequest struct {
 	PageSize  int        `json:"page_size" form:"page_size" binding:"min=1,max=100"`
 	Type      string     `json:"type" form:"type" binding:"omitempty,oneof=receive payment transfer community"`
 	Status    string     `json:"status" form:"status" binding:"omitempty,oneof=success pending failed expired disputing refund refunded"`
+	ClientID  string     `json:"client_id" form:"client_id" binding:"omitempty"`
 	StartTime *time.Time `json:"startTime" form:"startTime" binding:"omitempty"`
 	EndTime   *time.Time `json:"endTime" form:"endTime" binding:"omitempty,gtfield=StartTime"`
 }
 
 type TransactionListResponse struct {
-	Total    int64         `json:"total"`
-	Page     int           `json:"page"`
-	PageSize int           `json:"page_size"`
-	Orders   []model.Order `json:"orders"`
+	Total    int64 `json:"total"`
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
+	Orders   []struct {
+		model.Order
+		AppName        string `json:"app_name"`
+		AppHomepageURL string `json:"app_homepage_url"`
+		AppDescription string `json:"app_description"`
+		RedirectURI    string `json:"redirect_uri"`
+	} `json:"orders"`
 }
 
 // ListTransactions 获取交易列表
@@ -68,19 +75,24 @@ func ListTransactions(c *gin.Context) {
 	user, _ := oauth.GetUserFromContext(c)
 
 	baseQuery := db.DB(c.Request.Context()).Model(&model.Order{}).
-		Where("payee_username = ? OR payer_username = ?", user.Username, user.Username)
+		Select("orders.*, merchant_api_keys.app_name, merchant_api_keys.app_homepage_url, merchant_api_keys.app_description, merchant_api_keys.redirect_uri").
+		Joins("LEFT JOIN merchant_api_keys ON orders.client_id = merchant_api_keys.client_id").
+		Where("orders.payee_username = ? OR orders.payer_username = ?", user.Username, user.Username)
 
 	if req.Status != "" {
-		baseQuery = baseQuery.Where("status = ?", model.OrderStatus(req.Status))
+		baseQuery = baseQuery.Where("orders.status = ?", model.OrderStatus(req.Status))
 	}
 	if req.Type != "" {
-		baseQuery = baseQuery.Where("type = ?", model.OrderType(req.Type))
+		baseQuery = baseQuery.Where("orders.type = ?", model.OrderType(req.Type))
+	}
+	if req.ClientID != "" {
+		baseQuery = baseQuery.Where("orders.client_id = ?", req.ClientID)
 	}
 	if req.StartTime != nil {
-		baseQuery = baseQuery.Where("created_at >= ?", req.StartTime)
+		baseQuery = baseQuery.Where("orders.created_at >= ?", req.StartTime)
 	}
 	if req.EndTime != nil {
-		baseQuery = baseQuery.Where("created_at <= ?", req.EndTime)
+		baseQuery = baseQuery.Where("orders.created_at <= ?", req.EndTime)
 	}
 
 	var total int64
@@ -89,17 +101,17 @@ func ListTransactions(c *gin.Context) {
 		return
 	}
 
-	var orders []model.Order
+	response := &TransactionListResponse{
+		Total:    total,
+		Page:     req.Page,
+		PageSize: req.PageSize,
+	}
+
 	offset := (req.Page - 1) * req.PageSize
-	if err := baseQuery.Order("created_at DESC").Offset(offset).Limit(req.PageSize).Find(&orders).Error; err != nil {
+	if err := baseQuery.Order("orders.created_at DESC").Offset(offset).Limit(req.PageSize).Find(&response.Orders).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, util.Err(err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, util.OK(TransactionListResponse{
-		Total:    total,
-		Page:     req.Page,
-		PageSize: req.PageSize,
-		Orders:   orders,
-	}))
+	c.JSON(http.StatusOK, util.OK(response))
 }

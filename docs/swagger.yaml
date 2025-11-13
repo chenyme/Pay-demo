@@ -55,6 +55,8 @@ definitions:
     type: object
   order.TransactionListRequest:
     properties:
+      client_id:
+        type: string
       endTime:
         type: string
       page:
@@ -102,8 +104,12 @@ definitions:
     properties:
       order_no:
         type: string
+      pay_key:
+        maxLength: 10
+        type: string
     required:
     - order_no
+    - pay_key
     type: object
   system_config.CreateSystemConfigRequest:
     properties:

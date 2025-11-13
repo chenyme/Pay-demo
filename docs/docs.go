@@ -741,6 +741,9 @@ const docTemplate = `{
         "order.TransactionListRequest": {
             "type": "object",
             "properties": {
+                "client_id": {
+                    "type": "string"
+                },
                 "endTime": {
                     "type": "string"
                 },
@@ -802,11 +805,16 @@ const docTemplate = `{
         "payment.PayOrderRequest": {
             "type": "object",
             "required": [
-                "order_no"
+                "order_no",
+                "pay_key"
             ],
             "properties": {
                 "order_no": {
                     "type": "string"
+                },
+                "pay_key": {
+                    "type": "string",
+                    "maxLength": 10
                 }
             }
         },
