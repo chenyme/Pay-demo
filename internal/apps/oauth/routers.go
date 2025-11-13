@@ -125,7 +125,7 @@ type BasicUserInfo struct {
 func UserInfo(c *gin.Context) {
 	user, _ := GetUserFromContext(c)
 
-	payConfig := &model.UserPayConfig{}
+	var payConfig model.UserPayConfig
 	if err := payConfig.GetByPayScore(db.DB(c.Request.Context()), user.PayScore); err != nil {
 		c.JSON(http.StatusInternalServerError, util.Err(err.Error()))
 		return

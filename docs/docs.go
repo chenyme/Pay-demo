@@ -448,6 +448,38 @@ const docTemplate = `{
             }
         },
         "/api/v1/merchant/payment": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "payment"
+                ],
+                "parameters": [
+                    {
+                        "description": "支付订单请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/payment.PayOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.ResponseAny"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/merchant/payment/order": {
             "get": {
                 "consumes": [
                     "application/json"
@@ -764,6 +796,17 @@ const docTemplate = `{
                 "remark": {
                     "type": "string",
                     "maxLength": 200
+                }
+            }
+        },
+        "payment.PayOrderRequest": {
+            "type": "object",
+            "required": [
+                "order_no"
+            ],
+            "properties": {
+                "order_no": {
+                    "type": "string"
                 }
             }
         },

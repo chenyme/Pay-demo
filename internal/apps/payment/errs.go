@@ -25,7 +25,7 @@
 package payment
 
 const (
-	OrderNotFound               = "订单不存在"
+	OrderNotFound               = "订单不存在或已完成"
 	OrderStatusInvalid          = "订单状态不允许支付"
 	OrderExpired                = "订单已过期"
 	InsufficientBalance         = "余额不足"
@@ -35,4 +35,5 @@ const (
 	AmountDecimalPlacesExceeded = "金额小数位数不能超过2位"
 	CannotPayOwnOrder           = "不能支付自己的订单"
 	DailyLimitExceeded          = "超过当日支付限额"
+	PayConfigNotFound           = "支付配置不存在"
 )

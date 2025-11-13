@@ -98,6 +98,13 @@ definitions:
     - amount
     - order_name
     type: object
+  payment.PayOrderRequest:
+    properties:
+      order_no:
+        type: string
+    required:
+    - order_no
+    type: object
   system_config.CreateSystemConfigRequest:
     properties:
       description:
@@ -445,6 +452,26 @@ paths:
       tags:
       - merchant
   /api/v1/merchant/payment:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 支付订单请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/payment.PayOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/util.ResponseAny'
+      tags:
+      - payment
+  /api/v1/merchant/payment/order:
     get:
       consumes:
       - application/json

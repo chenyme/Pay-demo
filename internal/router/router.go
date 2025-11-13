@@ -134,7 +134,8 @@ func Serve() {
 				MerchantPaymentRouter := merchantRouter.Group("/payment")
 				{
 					MerchantPaymentRouter.POST("/orders", payment.RequireMerchantAuth(), payment.CreateMerchantOrder)
-					MerchantPaymentRouter.GET("", oauth.LoginRequired(), payment.PayMerchantOrder)
+					MerchantPaymentRouter.GET("/order", oauth.LoginRequired(), payment.GetMerchantOrder)
+					MerchantPaymentRouter.POST("", oauth.LoginRequired(), payment.PayMerchantOrder)
 				}
 			}
 
