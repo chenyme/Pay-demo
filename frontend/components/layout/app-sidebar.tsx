@@ -231,29 +231,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="py-0 pt-4">
-          <SidebarGroupLabel className="text-xs font-normal text-muted-foreground">
-            管理
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="py-1">
-            <SidebarMenu className="gap-1">
-              {data.admin.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={pathname === item.url}
-                    asChild
-                  >
-                    <Link href={item.url}>
-                      {item.icon && <item.icon />}
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {user?.is_admin && (
+          <SidebarGroup className="py-0 pt-4">
+            <SidebarGroupLabel className="text-xs font-normal text-muted-foreground">
+              管理
+            </SidebarGroupLabel>
+            <SidebarGroupContent className="py-1">
+              <SidebarMenu className="gap-1">
+                {data.admin.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={pathname === item.url}
+                      asChild
+                    >
+                      <Link href={item.url}>
+                        {item.icon && <item.icon />}
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup className="py-0 pt-4">
           <SidebarGroupLabel className="text-xs font-normal text-muted-foreground">

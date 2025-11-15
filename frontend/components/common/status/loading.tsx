@@ -1,11 +1,45 @@
 "use client"
 
+import React from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { Badge } from "@/components/ui/badge"
-export function LoadingPage() {
 
+interface LoadingPageProps {
+  /** 显示的文本内容，默认为"系统" */
+  text?: string
+  /** 显示的徽章文本，默认为"系统" */
+  badgeText?: string
+}
 
+/**
+ * 加载页面组件
+ * @param text - 显示的文本内容，默认为"系统"
+ * @param badgeText - 显示的徽章文本，默认为"系统"
+ * @returns 加载页面组件
+ */
 
+// 渲染带动画效果的文字
+const renderAnimatedText = (text: string, startDelay: number = 0) => {
+  const chars = text.split('')
+  return (
+    <span className="inline-flex">
+      {chars.map((char, index) => (
+        <span
+          key={index}
+          className="inline-block animate-pulse transition-all duration-800 ease-in-out"
+          style={{
+            animationDelay: `${startDelay + index * 120}ms`,
+            animationFillMode: 'both',
+          }}
+        >
+          {char === ' ' ? '\u00A0' : char}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+export function LoadingPage({ text = "系统", badgeText = "系统" }: LoadingPageProps) {
   return (
     <div className="absolute inset-0 flex items-center justify-center">
       <div className="w-full max-w-md mx-auto text-center px-4">
@@ -20,13 +54,13 @@ export function LoadingPage() {
           className="mb-4"
         >
           <div className="relative inline-block text-3xl sm:text-4xl md:text-5xl font-bold text-foreground dark:text-white leading-tight">
-            LINUX DO{" "}
+            {renderAnimatedText("LINUX DO", 200)}{" "}
             <span className="relative">
-              <span className="text-3xl sm:text-4xl md:text-5xl italic font-serif text-blue-600 dark:text-blue-400">
-                PAY
+              <span className="text-4xl sm:text-5xl md:text-6xl italic font-serif text-blue-600 dark:text-blue-400">
+                {renderAnimatedText("PAY", 800)}
               </span>
               <span className="absolute -top-4 md:-top-6 -right-10">
-                <Badge variant="outline" className="text-[10px] px-1 h-4">商户</Badge>
+                <Badge variant="outline" className="text-[10px] px-1 h-4">{badgeText}</Badge>
               </span>
             </span>
           </div>
@@ -41,9 +75,9 @@ export function LoadingPage() {
               duration: 0.3,
               ease: "easeOut",
             }}
-            className="text-xs sm:text-sm md:text-base text-muted-foreground dark:text-neutral-400"
+            className="text-xs md:text-sm text-muted-foreground dark:text-neutral-400"
           >
-            <span>正在初始化商户系统...</span>
+            {`正在初始化${text}...`}
           </motion.div>
         </AnimatePresence>
       </div>

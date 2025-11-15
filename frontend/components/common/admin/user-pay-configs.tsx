@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +15,30 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table"
+import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
-import services, { type UserPayConfig } from "@/lib/services"
-import { Trash2 } from "lucide-react"
+import type { UserPayConfig } from "@/lib/services"
+import { Trash2, ListRestart, Layers } from "lucide-react"
+import { ErrorInline } from "@/components/common/status/error"
+import { EmptyStateWithBorder } from "@/components/common/status/empty"
+import { useAdmin, useTableInteraction } from "@/contexts/admin-context"
 
 /**
  * 支付配置详情面板组件
  */
-function PayConfigDetailPanel({ config }: { config: UserPayConfig | null }) {
+function PayConfigDetailPanel({
+  config,
+  editData,
+  onEditDataChange,
+  onSave,
+  saving
+}: {
+  config: UserPayConfig | null
+  editData: Partial<UserPayConfig>
+  onEditDataChange: (field: keyof UserPayConfig, value: UserPayConfig[keyof UserPayConfig]) => void
+  onSave: () => void
+  saving: boolean
+}) {
   // 格式化日期
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('zh-CN', {
@@ -36,11 +52,12 @@ function PayConfigDetailPanel({ config }: { config: UserPayConfig | null }) {
 
   if (!config) {
     return (
-      <div className="h-full flex items-center justify-center text-muted-foreground">
-        <div className="text-center">
-          <div className="text-lg mb-2">请选择配置查看详情</div>
-          <div className="text-sm">鼠标悬浮或点击表格行查看详细信息</div>
-        </div>
+      <div className="space-y-4">
+      <div className="font-semibold mb-4">配置信息</div>
+        <EmptyStateWithBorder 
+          icon={Layers}
+          description="请选择配置查看详情"
+        />
       </div>
     )
   }
@@ -48,52 +65,171 @@ function PayConfigDetailPanel({ config }: { config: UserPayConfig | null }) {
   return (
     <div className="space-y-4 sticky top-6">
       <div>
-        <h2 className="font-semibold mb-4">配置信息</h2>
-        <div className="border border-dashed rounded-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="font-semibold">配置信息</div>
+          {config && (
+            <Button
+              onClick={onSave}
+              disabled={saving}
+              size="sm"
+              className="px-3 h-7 text-xs"
+            >
+              {saving ? (<><Spinner className="h-3 w-3 mr-1" /> 更新中</>) : '更新'}
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-0">
+          <div className="border border-dashed rounded-l-lg">
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
             <label className="text-xs font-medium text-muted-foreground">配置等级</label>
-            <p className="text-xs text-muted-foreground truncate text-right max-w-[70%]">Level {config.level}</p>
+              <p className="text-xs text-muted-foreground">Level {config?.level}</p>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
             <label className="text-xs font-medium text-muted-foreground">配置ID</label>
-            <p className="text-xs text-muted-foreground truncate text-right max-w-[70%]">{config.id}</p>
+              <p className="text-xs text-muted-foreground">{config?.id}</p>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
-            <label className="text-xs font-medium text-muted-foreground">最低分数</label>
-            <p className="text-xs text-muted-foreground truncate text-right max-w-[70%]">{config.min_score.toLocaleString()}</p>
+              <label className="text-xs font-medium text-muted-foreground">创建时间</label>
+              <p className="text-xs text-muted-foreground">{config ? formatDate(config.created_at) : ''}</p>
+          </div>
+
+            <div className="px-3 py-2 flex items-center justify-between">
+              <label className="text-xs font-medium text-muted-foreground">更新时间</label>
+              <p className="text-xs text-muted-foreground">{config ? formatDate(config.updated_at) : ''}</p>
+            </div>
+          </div>
+
+          <div className="border border-dashed rounded-r-lg border-l-0">
+          <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
+              <label className="text-xs font-medium text-muted-foreground">最低分数</label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={editData.min_score !== undefined ? editData.min_score.toString() : (config?.min_score?.toString() || '')}
+                  placeholder={editData.min_score === undefined && !config?.min_score ? '必需' : ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '') {
+                      onEditDataChange('min_score', 0)
+                      return
+                    }
+
+                    const numValue = parseInt(value)
+                    if (isNaN(numValue)) {
+                      return
+                    }
+
+                    if (numValue >= 0) {
+                      onEditDataChange('min_score', numValue)
+                    }
+                  }}
+                  className="text-xs text-right h-4 w-16 px-0 rounded-none border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-[12px]"
+                />
+                <p className="text-xs text-muted-foreground">LDC</p>
+              </div>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
-            <label className="text-xs font-medium text-muted-foreground">最高分数</label>
-            <p className="text-xs text-muted-foreground truncate text-right max-w-[70%]">
-              {config.max_score ? config.max_score.toLocaleString() : '不限制'}
-            </p>
+              <label className="text-xs font-medium text-muted-foreground">最高分数</label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={editData.max_score !== undefined ? (editData.max_score?.toString() || '') : (config?.max_score?.toString() || '')}
+                  placeholder={(editData.max_score === null || editData.max_score === undefined) && (config?.max_score === null || config?.max_score === undefined) ? '无限制' : ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '') {
+                      onEditDataChange('max_score', null)
+                      return
+                    }
+
+                    const numValue = parseInt(value)
+                    if (isNaN(numValue)) {
+                      return
+                    }
+
+                    if (numValue >= 0) {
+                      onEditDataChange('max_score', numValue)
+                    }
+                  }}
+                  className="text-xs text-right h-4 w-16 px-0 rounded-none border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-[12px]"
+                />
+                <p className="text-xs text-muted-foreground">LDC</p>
+              </div>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
-            <label className="text-xs font-medium text-muted-foreground">手续费率</label>
-            <p className="text-xs text-green-600 truncate text-right max-w-[70%]">
-              {(parseFloat(config.fee_rate.toString()) * 100).toFixed(2)}%
-            </p>
-          </div>
+              <label className="text-xs font-medium text-muted-foreground">手续费率</label>
+              <div className="flex items-right gap-1">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="100"
+                  value={
+                    editData.fee_rate !== undefined
+                      ? (parseFloat(editData.fee_rate.toString()) * 100).toString()
+                      : (config?.fee_rate ? (parseFloat(config.fee_rate.toString()) * 100).toString() : '')
+                  }
+                  placeholder={editData.fee_rate === undefined && !config?.fee_rate ? '必需' : ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '') {
+                      onEditDataChange('fee_rate', '0')
+                      return
+                    }
 
-          <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
-            <label className="text-xs font-medium text-muted-foreground">每日提现上限</label>
-            <p className="text-xs text-blue-600 truncate text-right max-w-[70%]">
-              {config.daily_limit ? `¥${config.daily_limit.toLocaleString()}` : '不限制'}
-            </p>
-          </div>
+                    const numValue = parseInt(value)
+                    if (isNaN(numValue)) {
+                      return // 无效数字，忽略
+                    }
 
-          <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
-            <label className="text-xs font-medium text-muted-foreground">创建时间</label>
-            <p className="text-xs text-muted-foreground text-right max-w-[70%]">{formatDate(config.created_at)}</p>
+                    if (numValue >= 0 && numValue <= 100) {
+                      onEditDataChange('fee_rate', (numValue / 100).toString())
+                    }
+                  }}
+                  className="text-xs text-right h-4 w-16 px-0 mr-3 rounded-none border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-[12px]"
+                />
+                <p className="text-xs text-muted-foreground">%</p>
+              </div>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between">
-            <label className="text-xs font-medium text-muted-foreground">更新时间</label>
-            <p className="text-xs text-muted-foreground text-right max-w-[70%]">{formatDate(config.updated_at)}</p>
+              <label className="text-xs font-medium text-muted-foreground">每日支付上限</label>
+              <div className="flex items-center gap-1">
+                <Input
+                  type="number"
+                  step="1"
+                  min="0"
+                  value={editData.daily_limit !== undefined ? (editData.daily_limit?.toString() || '') : (config?.daily_limit?.toString() || '')}
+                  placeholder={(editData.daily_limit === null || editData.daily_limit === undefined) && (config?.daily_limit === null || config?.daily_limit === undefined) ? '无限制' : ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '') {
+                      onEditDataChange('daily_limit', null)
+                      return
+                    }
+
+                    const numValue = parseInt(value)
+                    if (isNaN(numValue)) {
+                      return
+                    }
+
+                    if (numValue >= 0) {
+                      onEditDataChange('daily_limit', numValue)
+                    }
+                  }}
+                  className="text-xs text-right h-4 w-16 px-0 rounded-none border-none shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-[12px]"
+                />
+                <p className="text-xs text-muted-foreground">LDC</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -127,10 +263,10 @@ export function UserPayConfigsTable({
           <TableHeader>
             <TableRow className="border-b border-dashed">
               <TableHead className="whitespace-nowrap w-[80px]">等级</TableHead>
-              <TableHead className="whitespace-nowrap text-center min-w-[100px]">下限</TableHead>
-              <TableHead className="whitespace-nowrap text-center min-w-[100px]">上限</TableHead>
+              <TableHead className="whitespace-nowrap text-center min-w-[100px]">最低分数</TableHead>
+              <TableHead className="whitespace-nowrap text-center min-w-[100px]">最高分数</TableHead>
               <TableHead className="whitespace-nowrap text-center min-w-[100px]">手续费率</TableHead>
-              <TableHead className="whitespace-nowrap text-center min-w-[100px]">每日提现上限</TableHead>
+              <TableHead className="whitespace-nowrap text-center min-w-[100px]">每日支付上限</TableHead>
               <TableHead className="whitespace-nowrap text-center w-[100px]">操作</TableHead>
             </TableRow>
           </TableHeader>
@@ -191,13 +327,13 @@ function PayConfigTableRow({
         {config.min_score.toLocaleString()}
       </TableCell>
       <TableCell className="text-xs text-center py-1">
-        {config.max_score ? config.max_score.toLocaleString() : '不限制'}
+        {config.max_score ? config.max_score.toLocaleString() : '无限制'}
       </TableCell>
       <TableCell className="text-xs text-center py-1">
-        {(parseFloat(config.fee_rate.toString()) * 100).toFixed(2)}%
+        {Math.round(parseFloat(config.fee_rate.toString()) * 100)}%
       </TableCell>
       <TableCell className="text-xs text-center py-1">
-        {config.daily_limit ? `¥${config.daily_limit.toLocaleString()}` : '不限制'}
+        {config.daily_limit ? config.daily_limit.toLocaleString() : '无限制'}
       </TableCell>
       <TableCell className="text-center py-1">
         <AlertDialog>
@@ -239,101 +375,134 @@ function PayConfigTableRow({
  * 用户支付配置管理组件
  */
 export function UserPayConfigs() {
-  const [configs, setConfigs] = useState<UserPayConfig[]>([])
-  const [hoveredConfig, setHoveredConfig] = useState<UserPayConfig | null>(null)
-  const [selectedConfig, setSelectedConfig] = useState<UserPayConfig | null>(null)
+  const {
+    userPayConfigs: configs,
+    userPayConfigsLoading: loading,
+    userPayConfigsError: error,
+    refetchUserPayConfigs,
+    updateUserPayConfig,
+    deleteUserPayConfig,
+  } = useAdmin()
 
-  useEffect(() => {
-    loadConfigs()
-  }, [])
-
-  const loadConfigs = async () => {
-    try {
-    const data = await services.admin.listUserPayConfigs()
-    setConfigs(data)
-    } catch (error) {
-      if (error && typeof error === 'object' && '__CANCEL__' in error) {
-        return
-      }
-      console.error('加载支付配置失败:', error)
-    }
-  }
-
-  const handleCreate = async () => {
-    try {
-      await services.admin.createUserPayConfig({
-        level: configs.length,
-        min_score: 0,
-        max_score: null,
-        daily_limit: null,
-        fee_rate: '0.00',
-      })
-      toast.success('创建成功')
-      loadConfigs()
-    } catch (error) {
-      if (error && typeof error === 'object' && '__CANCEL__' in error) {
-        return
-      }
-      toast.error('创建失败', {
-        description: error instanceof Error ? error.message : '未知错误'
-      })
-    }
-  }
+  const {
+    hoveredItem: hoveredConfig,
+    selectedItem: selectedConfig,
+    editData,
+    saving,
+    setSaving,
+    handleHover,
+    handleSelect,
+    handleEditDataChange,
+  } = useTableInteraction<UserPayConfig>((config) => ({
+    min_score: config.min_score,
+    max_score: config.max_score,
+    fee_rate: config.fee_rate.toString(),
+    daily_limit: config.daily_limit,
+  }))
 
   const handleDelete = async (id: number) => {
     try {
-      await services.admin.deleteUserPayConfig(id)
+      await deleteUserPayConfig(id)
       toast.success('删除成功')
-      loadConfigs()
     } catch (error) {
-      if (error && typeof error === 'object' && '__CANCEL__' in error) {
-        return
-      }
       toast.error('删除失败', {
         description: error instanceof Error ? error.message : '未知错误'
       })
     }
   }
 
-  const handleHover = (config: UserPayConfig | null) => {
-    setHoveredConfig(config)
+  const handleSave = async () => {
+    if (!selectedConfig) return
+
+    setSaving(true)
+    try {
+      await updateUserPayConfig(selectedConfig.id, {
+        min_score: editData.min_score ?? selectedConfig.min_score,
+        max_score: editData.max_score,
+        daily_limit: editData.daily_limit,
+        fee_rate: editData.fee_rate?.toString() ?? selectedConfig.fee_rate.toString(),
+      })
+      // 刷新本地缓存的数据
+      await refetchUserPayConfigs()
+      toast.success('保存成功')
+    } catch (error) {
+      toast.error('保存失败', {
+        description: error instanceof Error ? error.message : '未知错误'
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const handleSelect = (config: UserPayConfig) => {
-    setSelectedConfig(config)
-    setHoveredConfig(null)
+  // 渲染内容
+  const renderContent = () => {
+    if (loading && configs.length === 0) {
+      return (
+        <EmptyStateWithBorder
+          icon={ListRestart}
+          description="配置加载中"
+          loading={true}
+        />
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="p-8 border-2 border-dashed border-border rounded-lg">
+        <ErrorInline
+          error={error}
+          onRetry={() => refetchUserPayConfigs()}
+          className="justify-center"
+        />
+        </div>
+      )
+    }
+
+    if (!configs || configs.length === 0) {
+      return (
+        <EmptyStateWithBorder
+          icon={Layers}
+          description="未发现支付配置"
+        />
+      )
+    }
+
+    return (
+      <UserPayConfigsTable
+        configs={configs}
+        onDelete={handleDelete}
+        onHover={handleHover}
+        onSelect={handleSelect}
+        hoveredConfig={hoveredConfig}
+        selectedConfig={selectedConfig}
+      />
+    )
   }
 
   const displayConfig = selectedConfig || hoveredConfig
 
   return (
     <div className="py-6">
-      <div className="flex items-center justify-between border-b border-border pb-2 mb-6">
+      <div className="flex border-b border-border pb-2 mb-6">
         <div className="text-2xl font-semibold">支付配置</div>
-        <Button onClick={handleCreate} className="h-8 text-xs">
-          创建配置
-        </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
+      <div className="space-y-6">
+        <div>
           <div className="mb-4">
             <div className="font-semibold">配置列表</div>
           </div>
-          <UserPayConfigsTable
-            configs={configs}
-            onDelete={handleDelete}
-            onHover={handleHover}
-            onSelect={handleSelect}
-            hoveredConfig={hoveredConfig}
-            selectedConfig={selectedConfig}
-          />
+          {renderContent()}
         </div>
 
-        <div className="col-span-1">
-          <div className="overflow-y-auto">
-            <PayConfigDetailPanel config={displayConfig} />
-          </div>
+        <div>
+          <PayConfigDetailPanel
+            config={displayConfig}
+            editData={editData}
+            onEditDataChange={handleEditDataChange}
+            onSave={handleSave}
+            saving={saving}
+          />
         </div>
       </div>
     </div>

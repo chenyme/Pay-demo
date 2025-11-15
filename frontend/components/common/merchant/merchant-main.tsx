@@ -76,7 +76,7 @@ export function MerchantMain() {
   }
 
   if (apiKeys.length === 0) {
-    return <LoadingPage />
+    return <LoadingPage text="商户中心" badgeText="商户" />
   }
 
   return (

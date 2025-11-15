@@ -56,6 +56,10 @@ export interface User {
   available_balance: number;
   /** 支付分数 */
   pay_score: number;
+  /** 是否有支付密钥 */
+  is_pay_key: boolean;
+  /** 是否为管理员 */
+  is_admin: boolean;
   /** 当日剩余配额 */
   remain_quota: number;
   /** 支付等级 */
