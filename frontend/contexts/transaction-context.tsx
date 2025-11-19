@@ -86,13 +86,13 @@ export function TransactionProvider({ children, defaultParams = {} }: Transactio
       if (requestId !== latestRequestIdRef.current) {
         return
       }
-      
+
       /* 使用缓存数据，同步更新状态 */
       setTransactions(cached.data)
       setTotal(cached.total)
       setCurrentPage(queryParams.page)
       setPageSize(queryParams.page_size)
-      setLastParams(params)
+      setLastParams(prev => ({ ...prev, ...params }))
       setError(null)
       setLoading(false)
       return
@@ -130,16 +130,16 @@ export function TransactionProvider({ children, defaultParams = {} }: Transactio
       setTotal(result.total)
       setCurrentPage(result.page)
       setPageSize(result.page_size)
-      setLastParams(params)
+      setLastParams(prev => ({ ...prev, ...params }))
     } catch (err) {
       if (err instanceof Error && err.message === '请求已被取消') {
         return
       }
-      
+
       if (requestId !== latestRequestIdRef.current) {
         return
       }
-      
+
       setError(err instanceof Error ? err : new Error('获取交易记录失败'))
       console.error('获取交易记录失败:', err)
     } finally {
@@ -152,7 +152,7 @@ export function TransactionProvider({ children, defaultParams = {} }: Transactio
   /* 加载更多 */
   const loadMore = useCallback(async () => {
     if (loading) return
-    
+
     const nextPage = currentPage + 1
     await fetchTransactions({
       ...lastParams,
@@ -219,10 +219,10 @@ export function TransactionProvider({ children, defaultParams = {} }: Transactio
  */
 export function useTransaction() {
   const context = useContext(TransactionContext)
-  
+
   if (!context) {
     throw new Error('useTransaction 必须在 TransactionProvider 内部使用')
   }
-  
+
   return context
 }

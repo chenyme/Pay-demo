@@ -2,13 +2,9 @@
 
 import * as React from "react"
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
-import { ErrorInline } from "@/components/layout/error"
-import { EmptyStateWithBorder } from "@/components/layout/empty"
 import { TableFilter } from "@/components/common/general/table-filter"
-import { TransactionDataTable } from "@/components/common/general/table-data"
-import { RefreshCw, Undo2, FileText, Settings, BarChart3, Zap, Layers, ListRestart } from "lucide-react"
+import { TransactionTableList } from "@/components/common/general/table-data"
+import { RefreshCw, Undo2, FileText, Settings, BarChart3, Zap } from "lucide-react"
 
 import type { MerchantAPIKey, OrderType, OrderStatus } from "@/lib/services"
 import { TransactionProvider, useTransaction } from "@/contexts/transaction-context"
@@ -102,61 +98,7 @@ function MerchantDataContent({ apiKey }: MerchantDataProps) {
     loadMore()
   }
 
-  const renderContent = () => {
-    if (loading && transactions.length === 0) {
-      return (
-        <EmptyStateWithBorder
-          icon={ListRestart}
-          description="数据加载中"
-          loading={true}
-        />
-      )
-    }
 
-    if (error) {
-      return (
-        <div className="p-8 border-2 border-dashed border-border rounded-lg">
-          <ErrorInline
-            error={error}
-            onRetry={() => fetchTransactions({ page: 1, client_id: apiKey.client_id })}
-            className="justify-center"
-          />
-        </div>
-      )
-    }
-
-    if (!transactions || transactions.length === 0) {
-      return (
-        <EmptyStateWithBorder
-          icon={Layers}
-          description="未发现交易记录"
-        />
-      )
-    }
-
-    return (
-      <>
-        <TransactionDataTable transactions={transactions} />
-
-        {currentPage < totalPages && (
-          <Button
-            variant="outline"
-            onClick={handleLoadMore}
-            disabled={loading}
-            className="w-full text-xs border-dashed"
-          >
-            {loading ? (<><Spinner /> 正在加载</>) : (`加载更多 (${transactions.length}/${total})`)}
-          </Button>
-        )}
-
-        {currentPage >= totalPages && total > 0 && (
-          <div className="pt-2 text-center text-xs text-muted-foreground">
-            已加载全部 {total} 条记录
-          </div>
-        )}
-      </>
-    )
-  }
 
   const merchantActions = [
     {
@@ -261,7 +203,17 @@ function MerchantDataContent({ apiKey }: MerchantDataProps) {
             onClearAll={clearAllFilters}
           />
 
-          {renderContent()}
+          <TransactionTableList
+            loading={loading}
+            error={error}
+            transactions={transactions}
+            total={total}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onRetry={() => fetchTransactions({ page: 1, client_id: apiKey.client_id })}
+            onLoadMore={handleLoadMore}
+            emptyDescription="未发现交易记录"
+          />
         </div>
       </div>
     </div>

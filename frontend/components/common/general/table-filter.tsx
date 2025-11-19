@@ -156,41 +156,31 @@ export function TableFilter({
   showClearButton = true,
   onClearAll,
 }: TableFilterProps) {
-  /* 切换类型筛选 */
-  const toggleType = (type: OrderType) => {
-    if (!onTypeChange) return
-    const newTypes = selectedTypes.includes(type)
-      ? selectedTypes.filter(t => t !== type)
-      : [...selectedTypes, type]
-    onTypeChange(newTypes)
+  /* 通用切换筛选函数 */
+  const handleToggle = <T extends string>(
+    value: T,
+    selectedValues: T[],
+    onChange?: (values: T[]) => void
+  ) => {
+    if (!onChange) return
+    const newValues = selectedValues.includes(value)
+      ? selectedValues.filter(v => v !== value)
+      : [...selectedValues, value]
+    onChange(newValues)
   }
 
+  /* 切换类型筛选 */
+  const toggleType = (type: OrderType) => handleToggle(type, selectedTypes, onTypeChange)
+
   /* 切换状态筛选 */
-  const toggleStatus = (status: OrderStatus) => {
-    if (!onStatusChange) return
-    const newStatuses = selectedStatuses.includes(status)
-      ? selectedStatuses.filter(s => s !== status)
-      : [...selectedStatuses, status]
-    onStatusChange(newStatuses)
-  }
+  const toggleStatus = (status: OrderStatus) => handleToggle(status, selectedStatuses, onStatusChange)
 
   /* 处理时间范围变化 */
   const handleTimeRangeChange = (range: { from: Date; to: Date } | null) => {
     onTimeRangeChange?.(range)
   }
 
-  /* 处理日历选择 */
-  const handleCalendarSelect = (range: { from?: Date; to?: Date } | undefined) => {
-    if (range?.from) {
-      let to = range.to || range.from
-      if (!range.to || range.from.getTime() === to.getTime()) {
-        to = new Date(range.from)
-        to.setHours(23, 59, 59, 999)
-      }
-      handleTimeRangeChange({ from: range.from, to })
-      onQuickSelectionChange?.(null)
-    }
-  }
+
 
   /* 是否有激活的筛选 */
   const hasActiveFilters = selectedTypes.length > 0 || selectedStatuses.length > 0
@@ -217,50 +207,12 @@ export function TableFilter({
         )}
 
         {enabledFilters.timeRange && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="!h-6 !min-h-6 text-xs font-bold rounded-full border border-dashed shadow-none !px-2.5 !py-1 gap-2 inline-flex items-center w-auto hover:bg-accent">
-                <CalendarIcon className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground text-xs font-bold">时间区间</span>
-                {selectedQuickSelection && (
-                  <>
-                    <Separator orientation="vertical" className="h-2.5" />
-                    <span className="text-blue-600 text-xs font-bold">{selectedQuickSelection}</span>
-                  </>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-90 md:w-160" align="start" sideOffset={4}>
-              <div className="flex">
-                <div className="w-32 px-1 py-4">
-                  {timeRangeOptions.map((selection) => (
-                    <button
-                      key={selection.label}
-                      onClick={() => {
-                        const range = selection.getValue()
-                        handleTimeRangeChange(range)
-                        onQuickSelectionChange?.(selection.label)
-                      }}
-                      className={`w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors cursor-pointer ${selectedQuickSelection === selection.label ? 'bg-accent text-accent-foreground' : ''
-                        }`}
-                    >
-                      {selection.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="px-1">
-                  <Calendar
-                    mode="range"
-                    selected={selectedTimeRange ? { from: selectedTimeRange.from, to: selectedTimeRange.to } : undefined}
-                    onSelect={handleCalendarSelect}
-                    numberOfMonths={2}
-                    locale={zhCN}
-                  />
-                </div>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TimeRangeFilter
+            selectedQuickSelection={selectedQuickSelection}
+            selectedTimeRange={selectedTimeRange}
+            onTimeRangeChange={handleTimeRangeChange}
+            onQuickSelectionChange={onQuickSelectionChange}
+          />
         )}
       </div>
 
@@ -303,8 +255,8 @@ function FilterSelect<T extends string>({ label, selectedValues, options, onTogg
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button className={`!h-6 !min-h-6 text-xs font-bold rounded-full border border-dashed shadow-none !px-2.5 !py-1 gap-2 inline-flex items-center w-auto hover:bg-accent ${selectedValues.length > 0
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
-            : 'border-muted-foreground/20'
+          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
+          : 'border-muted-foreground/20'
           }`}>
           <Filter className="h-3 w-3 text-muted-foreground" />
           <span className="text-muted-foreground text-xs font-bold">{label}</span>
@@ -336,6 +288,80 @@ function FilterSelect<T extends string>({ label, selectedValues, options, onTogg
             </Badge>
           </DropdownMenuItem>
         ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+interface TimeRangeFilterProps {
+  selectedQuickSelection: string | null
+  selectedTimeRange: { from: Date; to: Date } | null
+  onTimeRangeChange: (range: { from: Date; to: Date } | null) => void
+  onQuickSelectionChange?: (selection: string | null) => void
+}
+
+function TimeRangeFilter({
+  selectedQuickSelection,
+  selectedTimeRange,
+  onTimeRangeChange,
+  onQuickSelectionChange
+}: TimeRangeFilterProps) {
+  /* 处理日历选择 */
+  const handleCalendarSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (range?.from) {
+      let to = range.to || range.from
+      if (!range.to || range.from.getTime() === to.getTime()) {
+        to = new Date(range.from)
+        to.setHours(23, 59, 59, 999)
+      }
+      onTimeRangeChange({ from: range.from, to })
+      onQuickSelectionChange?.(null)
+    }
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="!h-6 !min-h-6 text-xs font-bold rounded-full border border-dashed shadow-none !px-2.5 !py-1 gap-2 inline-flex items-center w-auto hover:bg-accent">
+          <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+          <span className="text-muted-foreground text-xs font-bold">时间区间</span>
+          {selectedQuickSelection && (
+            <>
+              <Separator orientation="vertical" className="h-2.5" />
+              <span className="text-blue-600 text-xs font-bold">{selectedQuickSelection}</span>
+            </>
+          )}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-90 md:w-160" align="start" sideOffset={4}>
+        <div className="flex">
+          <div className="w-32 px-1 py-4">
+            {timeRangeOptions.map((selection) => (
+              <button
+                key={selection.label}
+                onClick={() => {
+                  const range = selection.getValue()
+                  onTimeRangeChange(range)
+                  onQuickSelectionChange?.(selection.label)
+                }}
+                className={`w-full text-left px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors cursor-pointer ${selectedQuickSelection === selection.label ? 'bg-accent text-accent-foreground' : ''
+                  }`}
+              >
+                {selection.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-1">
+            <Calendar
+              mode="range"
+              selected={selectedTimeRange ? { from: selectedTimeRange.from, to: selectedTimeRange.to } : undefined}
+              onSelect={handleCalendarSelect}
+              numberOfMonths={2}
+              locale={zhCN}
+            />
+          </div>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )

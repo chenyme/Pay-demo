@@ -16,7 +16,6 @@ export interface EmptyStateProps extends React.ComponentProps<"div"> {
   actionText?: string
   onAction?: () => void
   iconSize?: "sm" | "md" | "lg"
-  loading?: boolean
 }
 
 /**
@@ -56,55 +55,32 @@ export function EmptyState({
   onAction,
   className,
   iconSize = "md",
-  loading = false,
 }: EmptyStateProps) {
   const iconSizes = { sm: "size-10", md: "size-12", lg: "size-16" }
   const iconInnerSizes = { sm: "size-5", md: "size-6", lg: "size-8" }
-
-  /* 渲染带加载动画的文字 */
-  const renderLoadingText = (text: string) => {
-    const chars = text.split('')
-    return (
-      <span className="inline-flex">
-        {chars.map((char, index) => (
-          <span
-            key={index}
-            className="inline-block animate-pulse opacity-80 transition-all duration-1000 ease-in-out"
-            style={{
-              animationDelay: `${index * 150}ms`,
-              animationFillMode: 'both',
-            }}
-          >
-            {char === ' ' ? '\u00A0' : char}
-          </span>
-        ))}
-      </span>
-    )
-  }
 
   return (
     <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
       <div className={cn(
         "rounded-full bg-muted flex items-center justify-center mb-4",
         iconSizes[iconSize],
-        loading && "animate-pulse"
       )}>
         <Icon className={cn("text-muted-foreground", iconInnerSizes[iconSize])} />
       </div>
 
       {title && (
         <h3 className="text-base font-medium mb-1">
-          {loading ? renderLoadingText(title) : title}
+          {title}
         </h3>
       )}
 
       {description && (
         <p className="text-sm text-muted-foreground max-w-md">
-          {loading ? renderLoadingText(description) : description}
+          {description}
         </p>
       )}
 
-      {onAction && actionText && !loading && (
+      {onAction && actionText && (
         <Button
           onClick={onAction}
           variant="outline"

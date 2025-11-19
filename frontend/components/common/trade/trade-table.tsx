@@ -1,12 +1,7 @@
 import * as React from "react"
 import { useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
-import { ErrorInline } from "@/components/layout/error"
-import { EmptyStateWithBorder } from "@/components/layout/empty"
 import { TableFilter } from "@/components/common/general/table-filter"
-import { TransactionDataTable } from "@/components/common/general/table-data"
-import { ListRestart, Layers } from "lucide-react"
+import { TransactionTableList } from "@/components/common/general/table-data"
 
 import type { OrderType, OrderStatus, TransactionQueryParams } from "@/lib/services"
 import { TransactionProvider, useTransaction } from "@/contexts/transaction-context"
@@ -118,61 +113,7 @@ function TransactionList({ initialType }: { initialType?: OrderType }) {
     loadMore()
   }
 
-  const renderContent = () => {
-    if (loading && transactions.length === 0) {
-      return (
-        <EmptyStateWithBorder
-          icon={ListRestart}
-          description="数据加载中"
-          loading={true}
-        />
-      )
-    }
 
-    if (error) {
-      return (
-        <div className="p-8 border-2 border-dashed border-border rounded-lg">
-          <ErrorInline
-            error={error}
-            onRetry={() => fetchTransactions({ page: 1 })}
-            className="justify-center"
-          />
-        </div>
-      )
-    }
-
-    if (!transactions || transactions.length === 0) {
-      return (
-        <EmptyStateWithBorder
-          icon={Layers}
-          description="未发现活动"
-        />
-      )
-    }
-
-    return (
-      <>
-        <TransactionDataTable transactions={transactions} />
-
-        {currentPage < totalPages && (
-          <Button
-            variant="outline"
-            onClick={handleLoadMore}
-            disabled={loading}
-            className="w-full text-xs border-dashed"
-          >
-            {loading ? (<><Spinner /> 正在加载</>) : (`加载更多 (${transactions.length}/${total})`)}
-          </Button>
-        )}
-
-        {currentPage >= totalPages && total > 0 && (
-          <div className="pt-2 text-center text-xs text-muted-foreground">
-            已加载全部 {total} 条记录
-          </div>
-        )}
-      </>
-    )
-  }
 
   return (
     <div className="flex flex-col">
@@ -194,7 +135,16 @@ function TransactionList({ initialType }: { initialType?: OrderType }) {
           onClearAll={clearAllFilters}
         />
 
-        {renderContent()}
+        <TransactionTableList
+          loading={loading}
+          error={error}
+          transactions={transactions}
+          total={total}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onRetry={() => fetchTransactions({ page: 1 })}
+          onLoadMore={handleLoadMore}
+        />
       </div>
     </div>
   )

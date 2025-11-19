@@ -1,6 +1,8 @@
 import * as React from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { FileTextIcon } from "lucide-react"
 
 
 /* 渲染带动画效果的文字 */
@@ -78,6 +80,83 @@ export function LoadingPage({ text = "系统", badgeText = "系统" }: { text?: 
           </motion.div>
         </AnimatePresence>
       </div>
+    </div>
+  )
+}
+
+interface LoadingStateProps extends React.ComponentProps<"div"> {
+  title?: string
+  description?: string
+  icon?: React.ComponentType<{ className?: string }>
+  iconSize?: "sm" | "md" | "lg"
+}
+
+/**
+ * 加载状态展示组件
+ * 用于统一显示加载中的状态（原 EmptyState 的加载模式）
+ */
+export function LoadingState({
+  title = "加载中",
+  description = "正在获取数据...",
+  icon: Icon = FileTextIcon,
+  className,
+  iconSize = "md",
+}: LoadingStateProps) {
+  const iconSizes = { sm: "size-10", md: "size-12", lg: "size-16" }
+  const iconInnerSizes = { sm: "size-5", md: "size-6", lg: "size-8" }
+
+  /* 渲染带加载动画的文字 */
+  const renderLoadingText = (text: string) => {
+    const chars = text.split('')
+    return (
+      <span className="inline-flex">
+        {chars.map((char, index) => (
+          <span
+            key={index}
+            className="inline-block animate-pulse opacity-80 transition-all duration-1000 ease-in-out"
+            style={{
+              animationDelay: `${index * 150}ms`,
+              animationFillMode: 'both',
+            }}
+          >
+            {char === ' ' ? '\u00A0' : char}
+          </span>
+        ))}
+      </span>
+    )
+  }
+
+  return (
+    <div className={cn("flex flex-col items-center justify-center py-12 text-center", className)}>
+      <div className={cn(
+        "rounded-full bg-muted flex items-center justify-center mb-4 animate-pulse",
+        iconSizes[iconSize]
+      )}>
+        <Icon className={cn("text-muted-foreground", iconInnerSizes[iconSize])} />
+      </div>
+
+      {title && (
+        <h3 className="text-base font-medium mb-1">
+          {renderLoadingText(title)}
+        </h3>
+      )}
+
+      {description && (
+        <p className="text-sm text-muted-foreground max-w-md">
+          {renderLoadingText(description)}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * 带边框的加载状态组件
+ */
+export function LoadingStateWithBorder(props: LoadingStateProps) {
+  return (
+    <div className="border border-dashed rounded-lg">
+      <LoadingState {...props} />
     </div>
   )
 }

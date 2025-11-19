@@ -38,8 +38,8 @@ export function LoginForm({
       const message = error instanceof Error ? error.message : "登录失败，请重试"
       toast.error(message, {
         duration: 5000,
-        description: error instanceof Error && error.name === 'NetworkError' 
-          ? '请确认后端服务已启动' 
+        description: error instanceof Error && error.name === 'NetworkError'
+          ? '请确认后端服务已启动'
           : undefined
       })
     }
@@ -60,7 +60,7 @@ export function LoginForm({
         onClick={handleLogin}
         disabled={isLoading}
       >
-        {isLoading ? <><Spinner/>前往验证...</> : "LINUX DO 登录"}
+        {isLoading ? <><Spinner />前往验证...</> : "LINUX DO 登录"}
       </RippleButton>
     </div>
   )

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { MerchantDialog } from "@/components/common/merchant/merchant-dialog"
 import { Copy, Eye, EyeOff, Trash2, ExternalLink, Edit } from "lucide-react"
+import { formatDateTime } from "@/lib/utils"
 
 import { type MerchantAPIKey } from "@/lib/services"
 
@@ -46,16 +47,7 @@ export function MerchantInfo({ apiKey, onUpdate, onDelete }: MerchantInfoProps) 
     })
   }
 
-  /* 格式化日期 */
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
+
 
   const maskText = (text: string, showLength: number = 8) => {
     if (text.length <= showLength * 2) return text
@@ -81,7 +73,7 @@ export function MerchantInfo({ apiKey, onUpdate, onDelete }: MerchantInfoProps) 
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
             <label className="text-xs font-medium text-muted-foreground">创建时间</label>
-            <p className="text-xs text-muted-foreground text-right max-w-[70%]">{formatDate(apiKey.created_at)}</p>
+            <p className="text-xs text-muted-foreground text-right max-w-[70%]">{formatDateTime(apiKey.created_at)}</p>
           </div>
 
           <div className="px-3 py-2 flex items-center justify-between border-b border-dashed last:border-b-0">
@@ -177,7 +169,7 @@ export function MerchantInfo({ apiKey, onUpdate, onDelete }: MerchantInfoProps) 
           <MerchantDialog
             mode="update"
             apiKey={apiKey}
-            onSuccess={() => {}}
+            onSuccess={() => { }}
             onUpdate={onUpdate}
             trigger={
               <Button variant="outline" className="text-xs text-primary h-7 border-dashed border-primary/50">

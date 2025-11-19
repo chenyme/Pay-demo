@@ -58,7 +58,7 @@ export function LoginPage() {
     const numericValue = value.replace(/\D/g, '')
     setConfirmPayKey(numericValue)
   }
-  
+
   /* 标语 */
   const slogans = [
     "Fast and convenient payment solution.",
@@ -68,13 +68,13 @@ export function LoginPage() {
   ]
   /* 当前标语索引 */
   const [currentSloganIndex, setCurrentSloganIndex] = useState(0)
-  
+
   /* 定时更新标语 */
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSloganIndex((prev) => (prev + 1) % slogans.length)
     }, 3000)
-    
+
     return () => clearInterval(interval)
   }, [slogans.length])
 
@@ -209,8 +209,8 @@ export function LoginPage() {
       </div>
 
       <form onSubmit={handlePayKeySubmit} className="space-y-6 w-full">
-          <AnimatePresence mode="wait">
-            {setupStep === 'password' ? (
+        <AnimatePresence mode="wait">
+          {setupStep === 'password' ? (
             <motion.div
               key="password-step"
               initial={{ opacity: 0, x: -20 }}
@@ -220,14 +220,14 @@ export function LoginPage() {
               className="space-y-2"
             >
               <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={payKey}
-                onChange={handlePayKeyChange}
-                disabled={isSubmittingPayKey}
-                autoFocus
-                error={!passwordsMatch && confirmPayKey.length === 6}
-              >
+                <InputOTP
+                  maxLength={6}
+                  value={payKey}
+                  onChange={handlePayKeyChange}
+                  disabled={isSubmittingPayKey}
+                  autoFocus
+                  error={!passwordsMatch && confirmPayKey.length === 6}
+                >
                   <InputOTPGroup className="gap-1">
                     <InputOTPSlot index={0} className="w-10 h-10" />
                     <InputOTPSlot index={1} className="w-10 h-10" />
@@ -249,14 +249,14 @@ export function LoginPage() {
               className="space-y-2"
             >
               <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={confirmPayKey}
-                onChange={handleConfirmPayKeyChange}
-                disabled={isSubmittingPayKey}
-                autoFocus
-                error={!passwordsMatch && confirmPayKey.length === 6}
-              >
+                <InputOTP
+                  maxLength={6}
+                  value={confirmPayKey}
+                  onChange={handleConfirmPayKeyChange}
+                  disabled={isSubmittingPayKey}
+                  autoFocus
+                  error={!passwordsMatch && confirmPayKey.length === 6}
+                >
                   <InputOTPGroup className="gap-1">
                     <InputOTPSlot index={0} className="w-10 h-10" />
                     <InputOTPSlot index={1} className="w-10 h-10" />
@@ -317,7 +317,7 @@ export function LoginPage() {
               >
                 {setupStep === 'password'
                   ? '继续'
-                  : (isSubmittingPayKey ? <><Spinner/> 设置中</> : "完成")
+                  : (isSubmittingPayKey ? <><Spinner /> 设置中</> : "完成")
                 }
               </Button>
             </motion.div>
@@ -378,7 +378,7 @@ export function LoginPage() {
                 ) : (
                   <>
                     <div className="text-lg font-medium flex items-center justify-center gap-2">
-                      <Spinner/>
+                      <Spinner />
                       <span>正在验证您的登录信息</span>
                     </div>
                     <p className="text-sm text-muted-foreground">请稍候，即将完成验证...</p>

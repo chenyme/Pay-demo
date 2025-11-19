@@ -8,60 +8,7 @@ import type { UpdateUserPayConfigRequest } from "@/lib/services/admin/types"
 import type { UserPayConfig, SystemConfig, UpdateSystemConfigRequest } from "@/lib/services"
 
 
-/**
- * 通用的表格交互 hook
- * 用于统一处理表格交互逻辑
- * 
- * @example
- * ```tsx
- * <TableInteraction>
- *   <div>内容</div>
- * </TableInteraction>
- * ```
- */
-export function useTableInteraction<T extends { id?: number; key?: string }>(getInitialEditData: (item: T) => Partial<T>) {
-  const [hoveredItem, setHoveredItem] = useState<T | null>(null)
-  const [selectedItem, setSelectedItem] = useState<T | null>(null)
-  const [editData, setEditData] = useState<Partial<T>>({})
-  const [saving, setSaving] = useState(false)
 
-  const handleHover = (item: T | null) => {
-    setHoveredItem(item)
-  }
-
-  const handleSelect = (item: T) => {
-    const itemId = item.id || item.key
-    const selectedId = selectedItem?.id || selectedItem?.key
-
-    if (itemId === selectedId) {
-      setSelectedItem(null)
-      setEditData({})
-    } else {
-      setSelectedItem(item)
-      setEditData(getInitialEditData(item))
-    }
-    setHoveredItem(null)
-  }
-
-  const handleEditDataChange = (field: keyof T, value: T[keyof T]) => {
-    setEditData(prev => ({
-      ...prev,
-      [field]: value
-    }))
-  }
-
-  return {
-    hoveredItem,
-    selectedItem,
-    editData,
-    saving,
-    setSaving,
-    handleHover,
-    handleSelect,
-    handleEditDataChange,
-    setEditData,
-  }
-}
 
 /**
  * Admin 上下文状态接口
