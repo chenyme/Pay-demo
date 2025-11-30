@@ -180,9 +180,10 @@ function OrderDetailDialog({ order }: { order: Order }) {
 }
 
 /**
- * 争议弹窗组件
+ * 发起争议弹窗组件
+ * 场景1：付款方对成功的订单发起争议
  */
-function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => void }) {
+function CreateDisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => void }) {
   const isMobile = useIsMobile()
   const { config: publicConfig, loading: configLoading, error: configError } = usePublicConfig()
   const { updateOrderStatus } = useTransaction()
@@ -190,56 +191,27 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
   const [loading, setLoading] = useState(false)
   const [reason, setReason] = useState("")
 
-  const [disputeHistory, setDisputeHistory] = useState<Dispute | null>(null)
-  const [fetchingHistory, setFetchingHistory] = useState(false)
-
-  const isDisputing = order.status === 'disputing'
-  const isRefused = order.status === 'refused'
-
   const resetForm = () => {
     setReason("")
-    setDisputeHistory(null)
   }
 
-  const fetchDisputeHistory = async () => {
-    try {
-      setFetchingHistory(true)
-      const res = await DisputeService.listDisputes({
-        page: 1,
-        page_size: 1,
-        dispute_id: order.id
-      })
-
-      if (res.disputes && res.disputes.length > 0) {
-        setDisputeHistory(res.disputes[0])
-      }
-    } catch (error) {
-      console.error('获取争议记录失败:', error)
-      toast.error('无法获取争议记录')
-    } finally {
-      setFetchingHistory(false)
-    }
-  }
-
-  const handleButtonClick = () => {
-    /** 如果是已拒绝状态，打开对话框并获取历史争议记录*/
-    if (isRefused) {
-      setOpen(true)
-      fetchDisputeHistory()
-      return
-    }
-
-    /** 如果是争议中状态，直接打开取消争议对话框*/
-    if (isDisputing) {
-      setOpen(true)
-      return
-    }
-
+  const handleButtonClick = async () => {
+    /* 如果配置正在加载，等待配置加载完成*/
     if (configLoading) {
-      toast.error('配置加载中', {
-        description: '请稍候再试'
-      })
-      return
+      try {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        if (configLoading) {
+          toast.error('配置加载中', {
+            description: '请稍候再试'
+          })
+          return
+        }
+      } catch {
+        toast.error('配置加载失败', {
+          description: '请刷新页面重试'
+        })
+        return
+      }
     }
 
     if (configError || !publicConfig) {
@@ -249,7 +221,7 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
       return
     }
 
-    /** 检查时间窗口*/
+    /* 检查时间窗口*/
     const tradeTime = new Date(order.trade_time)
     const expiryTime = new Date(tradeTime.getTime() + publicConfig.dispute_time_window_hours * 60 * 60 * 1000)
     const now = new Date()
@@ -261,7 +233,6 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
       return
     }
 
-    /** 通过检查，打开对话框*/
     setOpen(true)
   }
 
@@ -270,33 +241,6 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
       resetForm()
     }
     setOpen(newOpen)
-  }
-
-  const handleCancelDispute = async () => {
-    try {
-      setLoading(true)
-
-      await DisputeService.closeDispute({
-        dispute_id: order.id,
-      })
-
-      toast.success('争议已取消', {
-        description: '争议已成功取消'
-      })
-
-      /** 乐观更新：取消争议后，状态恢复为 success*/
-      updateOrderStatus(order.id, { status: 'success' })
-
-      setOpen(false)
-      onSuccess?.()
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : '取消争议失败'
-      toast.error('取消争议失败', {
-        description: errorMessage
-      })
-    } finally {
-      setLoading(false)
-    }
   }
 
   const handleCreateDispute = async () => {
@@ -326,7 +270,7 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
         description: '请等待商家处理'
       })
 
-      /** 乐观更新：发起争议后，状态变为 disputing*/
+      /* 乐观更新：发起争议后，状态变为 disputing*/
       updateOrderStatus(order.id, { status: 'disputing' })
 
       setOpen(false)
@@ -342,7 +286,236 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
     }
   }
 
-  /** 解析争议原因*/
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-1 text-xs rounded-full text-muted-foreground hover:text-foreground"
+            onClick={handleButtonClick}
+          >
+            <AlertTriangle className="size-3" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>发起争议</p>
+        </TooltipContent>
+      </Tooltip>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className={isMobile ? "max-w-[95vw] p-4" : "max-w-md"}>
+          <DialogHeader>
+            <DialogTitle className={isMobile ? "text-base" : ""}>发起争议</DialogTitle>
+            <DialogDescription className={isMobile ? "text-xs" : ""}>
+              如果您对订单有疑问，可以发起争议。商家将在规定时间内处理。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="reason" className={isMobile ? "text-sm" : ""}>
+                争议原因
+              </Label>
+              <Textarea
+                id="reason"
+                placeholder="请详细描述您遇到的问题..."
+                maxLength={100}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                disabled={loading}
+                className={isMobile ? "text-sm" : ""}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {reason.length}/100
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className={isMobile ? "flex-col gap-2 sm:flex-row" : ""}>
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                disabled={loading}
+                className={isMobile ? "w-full h-9 text-sm" : "h-8 text-xs"}
+              >
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={(e) => {
+                e.preventDefault()
+                handleCreateDispute()
+              }}
+              disabled={loading}
+              className={isMobile ? "w-full bg-indigo-500 h-9 text-sm" : "bg-indigo-500 h-8 text-xs"}
+            >
+              {loading ? <><Spinner /> 提交中</> : '确认发起'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/**
+ * 取消争议弹窗组件
+ * 场景2：付款方在争议进行中取消争议
+ */
+function CancelDisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => void }) {
+  const isMobile = useIsMobile()
+  const { updateOrderStatus } = useTransaction()
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const handleCancelDispute = async () => {
+    try {
+      setLoading(true)
+
+      /* 检查订单是否有争议ID*/
+      if (!order.dispute_id) {
+        toast.error('取消争议失败', {
+          description: '未找到争议记录'
+        })
+        return
+      }
+
+      await DisputeService.closeDispute({
+        dispute_id: order.dispute_id,
+      })
+
+      toast.success('争议已取消', {
+        description: '争议已成功取消'
+      })
+
+      /* 乐观更新：取消争议后，状态恢复为 success*/
+      updateOrderStatus(order.id, { status: 'success' })
+
+      setOpen(false)
+      onSuccess?.()
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '取消争议失败'
+      toast.error('取消争议失败', {
+        description: errorMessage
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-1 text-xs rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => setOpen(true)}
+          >
+            <X className="size-3" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p>争议正在进行中，点击取消</p>
+        </TooltipContent>
+      </Tooltip>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className={isMobile ? "max-w-[95vw] p-4" : "max-w-md"}>
+          <DialogHeader>
+            <DialogTitle className={isMobile ? "text-base" : ""}>取消争议</DialogTitle>
+            <DialogDescription className={isMobile ? "text-xs" : ""}>
+              您确定要取消当前的争议申请吗？取消后交易将恢复正常。
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className={isMobile ? "flex-col gap-2 sm:flex-row" : ""}>
+            <DialogClose asChild>
+              <Button
+                variant="ghost"
+                disabled={loading}
+                className={isMobile ? "w-full h-9 text-sm" : "h-8 text-xs"}
+              >
+                取消
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={(e) => {
+                e.preventDefault()
+                handleCancelDispute()
+              }}
+              disabled={loading}
+              className={isMobile ? "w-full bg-indigo-500 h-9 text-sm" : "bg-indigo-500 h-8 text-xs"}
+            >
+              {loading ? <><Spinner /> 取消中</> : '确认取消'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/**
+ * 查看争议历史弹窗组件
+ * 场景3：付款方查看被拒绝的争议记录
+ */
+function ViewDisputeHistoryDialog({ order }: { order: Order }) {
+  const isMobile = useIsMobile()
+  const [open, setOpen] = useState(false)
+  const [disputeHistory, setDisputeHistory] = useState<Dispute | null>(null)
+  const [fetchingHistory, setFetchingHistory] = useState(false)
+
+  const resetForm = () => {
+    setDisputeHistory(null)
+  }
+
+  const fetchDisputeHistory = async () => {
+    try {
+      setFetchingHistory(true)
+
+      /* 检查订单是否有争议ID*/
+      if (!order.dispute_id) {
+        toast.error('获取争议记录失败', {
+          description: '未找到争议记录'
+        })
+        return
+      }
+
+      /* 作为发起者查询争议记录*/
+      const res = await DisputeService.listDisputes({
+        page: 1,
+        page_size: 1,
+        dispute_id: order.dispute_id
+      })
+
+      if (res.disputes && res.disputes.length > 0) {
+        setDisputeHistory(res.disputes[0])
+      } else {
+        toast.error('未找到争议记录')
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '获取争议记录失败'
+      toast.error('获取争议记录失败', {
+        description: errorMessage
+      })
+    } finally {
+      setFetchingHistory(false)
+    }
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setOpen(true)
+      fetchDisputeHistory()
+    } else {
+      setOpen(false)
+      resetForm()
+    }
+  }
+
+  /* 解析争议原因*/
   const parseDisputeReason = (fullReason: string) => {
     const match = fullReason.match(/^(.*?)\[商家拒绝理由: (.*?)\]$/)
     if (match) {
@@ -364,104 +537,60 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
           <Button
             variant="ghost"
             size="sm"
-            className={`h-6 w-6 p-1 text-xs rounded-full ${isDisputing
-              ? "text-red-600 hover:text-red-700 hover:bg-red-50"
-              : isRefused
-                ? "text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                : "text-muted-foreground hover:text-foreground"
-              }`}
-            onClick={handleButtonClick}
+            className="h-6 w-6 p-1 text-xs rounded-full text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+            onClick={() => handleOpenChange(true)}
           >
-            {isDisputing ? (
-              <X className="size-3" />
-            ) : isRefused ? (
-              <Layers className="size-3" />
-            ) : (
-              <AlertTriangle className="size-3" />
-            )}
+            <Layers className="size-3" />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <p>{isDisputing ? '争议正在进行中，点击取消' : isRefused ? '争议已拒绝，点击查看' : '发起争议'}</p>
+          <p>争议已拒绝，点击查看</p>
         </TooltipContent>
       </Tooltip>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className={isMobile ? "max-w-[95vw] p-4" : "max-w-md"}>
           <DialogHeader>
-            <DialogTitle className={isMobile ? "text-base" : ""}>
-              {isDisputing ? '取消争议' : isRefused ? '争议详情' : '发起争议'}
-            </DialogTitle>
+            <DialogTitle className={isMobile ? "text-base" : ""}>争议详情</DialogTitle>
             <DialogDescription className={isMobile ? "text-xs" : ""}>
-              {isDisputing
-                ? '您确定要取消当前的争议申请吗？取消后交易将恢复正常。'
-                : isRefused
-                  ? '查看争议处理记录'
-                  : '如果您对订单有疑问，可以发起争议。商家将在规定时间内处理。'
-              }
+              查看争议处理记录
             </DialogDescription>
           </DialogHeader>
 
-          {isRefused ? (
-            /** 拒绝状态展示时间轴*/
-            fetchingHistory ? (
-              <div className="py-8 flex justify-center">
-                <Spinner className="size-6" />
-              </div>
-            ) : disputeHistory ? (
-              <div className="py-4 relative pl-4 border-l border-border/50 space-y-8 ml-2">
-                <div className="relative">
-                  <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">用户发起争议</span>
-                      <span className="text-xs text-muted-foreground">{formatDateTime(disputeHistory.created_at)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                      {parseDisputeReason(disputeHistory.reason).userReason}
-                    </div>
+          {fetchingHistory ? (
+            <div className="py-8 flex justify-center">
+              <Spinner className="size-6" />
+            </div>
+          ) : disputeHistory ? (
+            <div className="py-4 relative pl-4 border-l border-border/50 space-y-8 ml-2">
+              <div className="relative">
+                <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-primary ring-4 ring-background" />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">用户发起争议</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(disputeHistory.created_at)}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                    {parseDisputeReason(disputeHistory.reason).userReason}
                   </div>
                 </div>
+              </div>
 
-                <div className="relative">
-                  <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-destructive ring-4 ring-background" />
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-destructive">商家驳回争议</span>
-                      <span className="text-xs text-muted-foreground">{formatDateTime(disputeHistory.updated_at)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground bg-destructive/5 border border-destructive/10 p-3 rounded-md">
-                      {parseDisputeReason(disputeHistory.reason).merchantReason || "未提供拒绝理由"}
-                    </div>
+              <div className="relative">
+                <div className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-destructive ring-4 ring-background" />
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-destructive">商家驳回争议</span>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(disputeHistory.updated_at)}</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground bg-destructive/5 border border-destructive/10 p-3 rounded-md">
+                    {parseDisputeReason(disputeHistory.reason).merchantReason || "未提供拒绝理由"}
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="py-8 text-center text-muted-foreground text-sm">
-                无法加载争议记录
-              </div>
-            )
+            </div>
           ) : (
-            /** 发起/取消争议表单*/
-            <div className="grid gap-4 py-4">
-              {!isDisputing && (
-                <div className="grid gap-2">
-                  <Label htmlFor="reason" className={isMobile ? "text-sm" : ""}>
-                    争议原因
-                  </Label>
-                  <Textarea
-                    id="reason"
-                    placeholder="请详细描述您遇到的问题..."
-                    maxLength={100}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    disabled={loading}
-                    className={isMobile ? "text-sm" : ""}
-                  />
-                  <p className="text-xs text-muted-foreground text-right">
-                    {reason.length}/100
-                  </p>
-                </div>
-              )}
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              无法加载争议记录
             </div>
           )}
 
@@ -469,32 +598,11 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
             <DialogClose asChild>
               <Button
                 variant="ghost"
-                disabled={loading}
                 className={isMobile ? "w-full h-9 text-sm" : "h-8 text-xs"}
               >
-                {isRefused ? '关闭' : '取消'}
+                关闭
               </Button>
             </DialogClose>
-            {!isRefused && (
-              <Button
-                onClick={(e) => {
-                  e.preventDefault()
-                  if (isDisputing) {
-                    handleCancelDispute()
-                  } else {
-                    handleCreateDispute()
-                  }
-                }}
-                disabled={loading}
-                className={isMobile ? "w-full bg-indigo-500 h-9 text-sm" : "bg-indigo-500 h-8 text-xs"}
-              >
-                {loading ? (
-                  <><Spinner /> {isDisputing ? '取消中' : '提交中'}</>
-                ) : (
-                  isDisputing ? '确认取消' : '确认发起'
-                )}
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -504,7 +612,7 @@ function DisputeDialog({ order, onSuccess }: { order: Order; onSuccess?: () => v
 
 /**
  * 退款审核弹窗组件
- * 商户用于处理争议：同意退款或拒绝退款
+ * 场景4：收款方（商户）处理争议，同意或拒绝退款
  */
 function RefundReviewDialog({ order, onSuccess }: { order: Order; onSuccess?: () => void }) {
   const isMobile = useIsMobile()
@@ -527,18 +635,34 @@ function RefundReviewDialog({ order, onSuccess }: { order: Order; onSuccess?: ()
   const fetchDisputeInfo = async () => {
     try {
       setFetchingDispute(true)
+
+      /* 检查订单是否有争议ID*/
+      if (!order.dispute_id) {
+        toast.error('获取争议详情失败', {
+          description: '未找到争议记录'
+        })
+        return
+      }
+
       const res = await DisputeService.listMerchantDisputes({
         page: 1,
         page_size: 1,
-        dispute_id: order.id
+        dispute_id: order.dispute_id
       })
 
       if (res.disputes && res.disputes.length > 0) {
         setDisputeInfo(res.disputes[0])
+      } else {
+        toast.error('获取争议详情失败', {
+          description: '未找到争议记录'
+        })
       }
     } catch (error) {
       console.error('获取争议详情失败:', error)
-      toast.error('无法获取争议详情')
+      const errorMessage = error instanceof Error ? error.message : '获取争议详情失败'
+      toast.error('获取争议详情失败', {
+        description: errorMessage
+      })
     } finally {
       setFetchingDispute(false)
     }
@@ -573,8 +697,16 @@ function RefundReviewDialog({ order, onSuccess }: { order: Order; onSuccess?: ()
     try {
       setLoading(true)
 
+      /* 检查订单是否有争议ID*/
+      if (!order.dispute_id) {
+        toast.error('处理失败', {
+          description: '未找到争议记录'
+        })
+        return
+      }
+
       await DisputeService.refundReview({
-        dispute_id: order.id,
+        dispute_id: order.dispute_id,
         status: action,
         reason: action === 'closed' ? reason.trim() : undefined,
       })
@@ -652,7 +784,7 @@ function RefundReviewDialog({ order, onSuccess }: { order: Order; onSuccess?: ()
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
-                  className={`h-auto py-2 flex flex-col gap-1 ${action === 'refund' && 'border-primary bg-primary/5 text-primary ring-1 ring-primary'}`}
+                  className={`h-auto py-2 flex flex-col gap-1 hover:bg-transparent hover:border-primary ${action === 'refund' && 'border-primary text-primary'}`}
                   onClick={() => setAction('refund')}
                 >
                   <div className="flex items-center gap-2">
@@ -664,14 +796,14 @@ function RefundReviewDialog({ order, onSuccess }: { order: Order; onSuccess?: ()
 
                 <Button
                   variant="outline"
-                  className={`h-auto py-3 flex flex-col gap-1 ${action === 'closed' && 'border-destructive bg-destructive/5 text-destructive ring-1 ring-destructive'}`}
+                  className={`h-auto py-2 flex flex-col gap-1 hover:bg-transparent hover:border-destructive ${action === 'closed' && 'border-destructive text-destructive'}`}
                   onClick={() => setAction('closed')}
                 >
                   <div className="flex items-center gap-2">
                     <TicketSlash className="h-4 w-4" />
                     <span className="font-semibold">拒绝退款</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground font-normal">拒绝申请，保持现状</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">拒绝申请，交易继续</span>
                 </Button>
               </div>
 
@@ -824,13 +956,23 @@ function TransactionTableRow({ order }: { order: Order }) {
       <TableCell className="sticky right-0 whitespace-nowrap text-center bg-background shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)] py-1 z-10">
         <OrderDetailDialog order={order} />
 
-        {/* 付款方：发起或取消争议 */}
-        {order.type === 'payment' && (order.status === 'success' || order.status === 'disputing' || order.status === 'refused') && (
-          <DisputeDialog order={order} />
+        {/* 场景1：付款方对成功的订单发起争议 */}
+        {order.type === 'payment' && order.status === 'success' && (
+          <CreateDisputeDialog order={order} />
         )}
 
-        {/* 收款方：处理争议 */}
-        {(order.type === 'receive') && (order.status === 'disputing') && (
+        {/* 场景2：付款方取消正在进行的争议 */}
+        {order.type === 'payment' && order.status === 'disputing' && (
+          <CancelDisputeDialog order={order} />
+        )}
+
+        {/* 场景3：付款方查看被拒绝的争议记录 */}
+        {order.type === 'payment' && order.status === 'refused' && (
+          <ViewDisputeHistoryDialog order={order} />
+        )}
+
+        {/* 场景4：收款方（商户）处理争议 */}
+        {order.type === 'receive' && order.status === 'disputing' && (
           <RefundReviewDialog order={order} />
         )}
       </TableCell>
@@ -914,3 +1056,6 @@ export function TransactionTableList({
     </div>
   )
 }
+
+// 导出对话框组件供其他组件使用
+export { RefundReviewDialog, CancelDisputeDialog }

@@ -103,7 +103,10 @@ export type {
   TransactionQueryParams,
   TransactionListResponse,
   CreateDisputeRequest,
+  TransferRequest,
+  TransferResponse,
 } from './transaction';
+
 
 // 争议服务
 export { DisputeService } from './dispute';
@@ -149,5 +152,6 @@ export type {
 
 // 用户服务
 export { UserService } from './user';
-export type { UpdatePayKeyRequest } from './user';
+export type { UpdatePayKeyRequest, UserInfo, SearchUserRequest } from './user';
+
 

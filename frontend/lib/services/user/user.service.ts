@@ -1,5 +1,5 @@
 import { BaseService } from '../core/base.service';
-import type { UpdatePayKeyRequest } from './types';
+import type { UpdatePayKeyRequest, SearchUserRequest, UserInfo } from './types';
 
 /**
  * 用户服务
@@ -27,6 +27,23 @@ export class UserService extends BaseService {
   static async updatePayKey(payKey: string): Promise<void> {
     const request: UpdatePayKeyRequest = { pay_key: payKey };
     return this.put<void>('/pay-key', request);
+  }
+
+  /**
+   * 搜索用户
+   * @param username - 用户名
+   * @returns 用户信息
+   * @throws {UnauthorizedError} 当用户未登录时
+   * @throws {NotFoundError} 当用户不存在时
+   *
+   * @example
+   * ```typescript
+   * const user = await UserService.searchUser('john_doe');
+   * ```
+   */
+  static async searchUser(username: string): Promise<UserInfo> {
+    const request: SearchUserRequest = { username };
+    return this.post<UserInfo>('/search', request);
   }
 }
 

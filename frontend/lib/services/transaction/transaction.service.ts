@@ -1,5 +1,7 @@
 import { BaseService } from '../core/base.service';
-import type { TransactionQueryParams, TransactionListResponse, CreateDisputeRequest } from './types';
+import apiClient from '../core/api-client';
+import type { ApiResponse } from '../core/types';
+import type { TransactionQueryParams, TransactionListResponse, CreateDisputeRequest, TransferRequest, TransferResponse } from './types';
 
 /**
  * 交易服务
@@ -37,6 +39,38 @@ export class TransactionService extends BaseService {
    */
   static async createDispute(data: CreateDisputeRequest): Promise<void> {
     return this.post('/dispute', data);
+  }
+
+  /**
+   * 用户转账
+   * @param data - 转账信息
+   * @returns 转账结果（订单信息）
+   * @throws {UnauthorizedError} 当未登录时
+   * @throws {NotFoundError} 当收款人不存在时
+   * @throws {ValidationError} 当参数验证失败时
+   * @throws {BadRequestError} 当余额不足或支付密码错误时
+   * 
+   * @example
+   * ```typescript
+   * const result = await TransactionService.transfer({
+   *   recipient_id: 123,
+   *   recipient_username: 'user123',
+   *   amount: 100.50,
+   *   pay_key: '123456',
+   *   remark: '转账备注'
+   * });
+   * ```
+   * 
+   * @remarks
+   * - 转账金额必须大于0，最多2位小数
+   * - 支付密码必须为6-10位
+   * - 备注最大200字符
+   * - 不能给自己转账
+   * - 需要确保账户余额充足
+   */
+  static async transfer(data: TransferRequest): Promise<TransferResponse> {
+    const response = await apiClient.post<ApiResponse<TransferResponse>>('/api/v1/payment/transfer', data);
+    return response.data.data;
   }
 }
 

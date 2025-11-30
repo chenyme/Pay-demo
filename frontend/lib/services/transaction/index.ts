@@ -11,6 +11,9 @@ export type {
   TransactionQueryParams,
   TransactionListResponse,
   CreateDisputeRequest,
+  TransferRequest,
+  TransferResponse,
 } from './types';
+
 
 

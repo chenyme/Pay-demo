@@ -269,13 +269,12 @@ export function UserPayConfigs() {
       emptyDescription="未发现支付配置"
       loadingDescription="配置加载中"
       columns={[
-        { header: "ID", cell: (item) => <span className="font-mono">{item.id}</span>, width: "80px" },
-        { header: "等级", cell: (item) => <span className="font-medium">Level {item.level}</span>, width: "80px" },
-        { header: "最低分", cell: (item) => item.min_score, width: "120px", align: "right" },
-        { header: "最高分", cell: (item) => item.max_score || "无限制", width: "120px", align: "right" },
-        { header: "每日限额", cell: (item) => item.daily_limit ? `${item.daily_limit.toLocaleString()} LDC` : "无限制", width: "120px", align: "right" },
-        { header: "费率", cell: (item) => `${(Number(item.fee_rate) * 100).toFixed(2)}%`, width: "120px", align: "center" },
-        { header: "更新时间", cell: (item) => <span className="text-muted-foreground">{formatDateTime(item.updated_at)}</span>, width: "150px", align: "center" },
+        { header: "等级", cell: (item) => <span className="font-medium">Level {item.level}</span>, width: "min-w-[80px]", align: "left" },
+        { header: "最低分", cell: (item) => item.min_score, width: "min-w-[200px]", align: "left" },
+        { header: "最高分", cell: (item) => item.max_score || "无限制", width: "min-w-[200px]", align: "left" },
+        { header: "每日限额", cell: (item) => item.daily_limit ? `LDC ${item.daily_limit.toLocaleString()}` : "无限制", width: "min-w-[200px]", align: "left" },
+        { header: "费率", cell: (item) => `${(Number(item.fee_rate) * 100).toFixed(2)}%`, width: "min-w-[200px]", align: "left" },
+        { header: "更新时间", cell: (item) => <span className="text-muted-foreground">{formatDateTime(item.updated_at)}</span>, width: "min-w-[200px]", align: "left" },
       ]}
       renderDetail={({ selected, hovered, editData, onEditDataChange, onSave, saving }) => (
         <PayConfigDetailPanel

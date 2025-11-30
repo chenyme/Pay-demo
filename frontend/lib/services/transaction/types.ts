@@ -103,3 +103,31 @@ export interface CreateDisputeRequest {
   reason: string;
 }
 
+/**
+ * 用户转账请求
+ */
+export interface TransferRequest {
+  /** 收款人用户 ID */
+  recipient_id: number;
+  /** 收款人用户名 */
+  recipient_username: string;
+  /** 转账金额（必须大于0，最多2位小数） */
+  amount: number | string;
+  /** 支付密码（6-10位） */
+  pay_key: string;
+  /** 备注（可选，最大200字符） */
+  remark?: string;
+}
+
+/**
+ * 用户转账响应
+ */
+export interface TransferResponse {
+  /** 订单 ID */
+  order_id: number;
+  /** 订单号 */
+  order_no: string;
+  /** 交易时间 */
+  trade_time: string;
+}
+

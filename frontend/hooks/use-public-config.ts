@@ -4,16 +4,16 @@ import { ConfigService, PublicConfigResponse } from '@/lib/services'
 /**
  * 使用公共配置 Hook
  * 自动获取并缓存公共配置，避免重复请求
- * 
+ *
  * @returns 公共配置数据、加载状态和错误信息
- * 
+ *
  * @example
  * ```tsx
  * const { config, loading, error } = usePublicConfig()
- * 
+ *
  * if (loading) return <Spinner />
  * if (error) return <Error message={error.message} />
- * 
+ *
  * console.log('争议时间窗口:', config.dispute_time_window_hours)
  * ```
  */
