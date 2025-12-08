@@ -41,7 +41,6 @@ import (
 	"github.com/linux-do/pay/internal/model"
 	"github.com/linux-do/pay/internal/util"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // HandleMerchantPaymentNotify 处理商户支付回调任务
@@ -85,31 +84,20 @@ func HandleMerchantPaymentNotify(ctx context.Context, t *asynq.Task) error {
 		"sign_type":    "MD5",
 	}
 
-	// 生成签名
 	callbackParams["sign"] = GenerateSignature(callbackParams, apiKey.ClientSecret)
 
-	// 执行HTTP回调
-	if err := sendCallbackRequest(ctx, apiKey.RedirectURI, callbackParams); err != nil {
-		// 获取当前重试次数
+	if err := sendCallbackRequest(ctx, apiKey.NotifyURL, callbackParams); err != nil {
 		retried, _ := asynq.GetRetryCount(ctx)
 		maxRetry := 5
 
 		logger.ErrorF(ctx, "商户回调失败: 订单[ID:%d] 重试次数[%d/%d] 错误: %v",
-			payload.OrderID, retried, maxRetry, err)
+			payload.OrderID, retried+1, maxRetry, err)
 
-		// 如果已经重试了5次（retried从0开始，4表示第5次重试），执行退款
 		if retried >= maxRetry-1 {
-			logger.ErrorF(ctx, "商户回调达到最大重试次数，开始执行退款: 订单[ID:%d]", payload.OrderID)
-			if refundErr := executeRefundForOrder(ctx, payload.OrderID); refundErr != nil {
-				logger.ErrorF(ctx, "订单[ID:%d]自动退款失败: %v", payload.OrderID, refundErr)
-				// 退款失败也返回错误，让任务进入dead队列等待人工处理
-				return fmt.Errorf("回调失败且自动退款失败: %w", refundErr)
-			}
-			logger.InfoF(ctx, "订单[ID:%d]自动退款成功", payload.OrderID)
-			return nil // 退款成功，任务完成
+			logger.ErrorF(ctx, "商户回调达到最大重试次数，回调最终失败: 订单[ID:%d]", payload.OrderID)
+			return nil // 任务完成（虽然失败）
 		}
 
-		// 还未达到最大重试次数，返回错误让asynq继续重试
 		return fmt.Errorf("商户回调失败: %w", err)
 	}
 
@@ -157,79 +145,4 @@ func sendCallbackRequest(ctx context.Context, callbackURL string, params map[str
 
 	logger.InfoF(ctx, "商户回调请求成功: URL[%s] 响应[%s]", callbackURL, string(respBody))
 	return nil
-}
-
-// executeRefundForOrder 执行订单退款
-func executeRefundForOrder(ctx context.Context, orderID uint64) error {
-	return db.DB(ctx).Transaction(func(tx *gorm.DB) error {
-		// 锁定订单
-		var order model.Order
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
-			Where("id = ? AND status = ?", orderID, model.OrderStatusSuccess).
-			First(&order).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				logger.InfoF(ctx, "订单[ID:%d]已被处理或状态异常，跳过退款", orderID)
-				return nil // 订单已处理，不算错误
-			}
-			return fmt.Errorf("锁定订单失败: %w", err)
-		}
-
-		// 只退款支付类型的订单
-		if order.Type != model.OrderTypePayment {
-			logger.InfoF(ctx, "订单[ID:%d]类型为%s，不支持退款", orderID, order.Type)
-			return nil
-		}
-
-		// 查询付款方和收款方用户
-		var payerUser, payeeUser model.User
-		if err := tx.Where("id = ?", order.PayerUserID).First(&payerUser).Error; err != nil {
-			return fmt.Errorf("查询付款方用户失败: %w", err)
-		}
-		if err := tx.Where("id = ?", order.PayeeUserID).First(&payeeUser).Error; err != nil {
-			return fmt.Errorf("查询收款方用户失败: %w", err)
-		}
-
-		// 获取商家的支付配置（用于计算积分扣减）
-		var merchantPayConfig model.UserPayConfig
-		if err := merchantPayConfig.GetByPayScore(tx, payeeUser.PayScore); err != nil {
-			return fmt.Errorf("查询商家支付配置失败: %w", err)
-		}
-
-		// 计算商家积分减少：订单金额 × 商家的 score_rate
-		merchantScoreDecrease := order.Amount.Mul(merchantPayConfig.ScoreRate).Round(0).IntPart()
-
-		// 商家(收款方)退款：扣除可用余额、总收款和积分
-		if err := tx.Model(&model.User{}).
-			Where("id = ?", payeeUser.ID).
-			UpdateColumns(map[string]interface{}{
-				"available_balance": gorm.Expr("available_balance - ?", order.Amount),
-				"total_receive":     gorm.Expr("total_receive - ?", order.Amount),
-				"pay_score":         gorm.Expr("pay_score - ?", merchantScoreDecrease),
-			}).Error; err != nil {
-			return fmt.Errorf("商家退款失败: %w", err)
-		}
-
-		// 付款方收到退款：增加可用余额，减少总支付和支付积分
-		if err := tx.Model(&model.User{}).
-			Where("id = ?", payerUser.ID).
-			UpdateColumns(map[string]interface{}{
-				"available_balance": gorm.Expr("available_balance + ?", order.Amount),
-				"total_payment":     gorm.Expr("total_payment - ?", order.Amount),
-				"pay_score":         gorm.Expr("pay_score - ?", order.Amount.Round(0).IntPart()),
-			}).Error; err != nil {
-			return fmt.Errorf("付款方退款失败: %w", err)
-		}
-
-		// 更新订单状态为已退款
-		if err := tx.Model(&model.Order{}).
-			Where("id = ?", order.ID).
-			UpdateColumn("status", model.OrderStatusRefund).Error; err != nil {
-			return fmt.Errorf("更新订单状态失败: %w", err)
-		}
-
-		logger.InfoF(ctx, "回调失败自动退款成功: 订单[ID:%d] 金额[%s] 付款方[%s] 商家[%s]",
-			order.ID, order.Amount.String(), payerUser.Username, payeeUser.Username)
-
-		return nil
-	})
 }

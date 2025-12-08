@@ -100,6 +100,10 @@ func Serve() {
 
 	// 支付接口
 	r.POST("/pay/submit.php", payment.RequireSignatureAuth(), payment.CreateMerchantOrder)
+	// 查询订单
+	r.GET("/api.php", payment.QueryMerchantOrder)
+	// 退款接口
+	r.POST("/api.php", payment.RefundMerchantOrder)
 
 	apiGroup := r.Group(config.Config.App.APIPrefix)
 	{
@@ -169,7 +173,7 @@ func Serve() {
 				// MerchantAPIKey Payment
 				MerchantPaymentRouter := merchantRouter.Group("/payment")
 				{
-					MerchantPaymentRouter.GET("/order", oauth.LoginRequired(), payment.GetMerchantOrder)
+					MerchantPaymentRouter.GET("/order", oauth.LoginRequired(), payment.GetPaymentPageDetails)
 					MerchantPaymentRouter.POST("", oauth.LoginRequired(), payment.PayMerchantOrder)
 				}
 			}

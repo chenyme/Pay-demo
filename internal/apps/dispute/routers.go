@@ -311,9 +311,7 @@ func RefundReview(c *gin.Context) {
 					return err
 				}
 
-				// 计算商家积分减少：订单金额 × 商家的 score_rate
 				merchantScoreDecrease := order.Amount.Mul(merchantPayConfig.ScoreRate).Round(0).IntPart()
-
 				if err := tx.Model(&model.User{}).
 					Where("id = ?", merchantUser.ID).
 					UpdateColumns(map[string]interface{}{

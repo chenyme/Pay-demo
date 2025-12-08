@@ -38,7 +38,8 @@ type CreateAPIKeyRequest struct {
 	AppName        string `json:"app_name" binding:"required,max=20"`
 	AppHomepageURL string `json:"app_homepage_url" binding:"required,max=100,url"`
 	AppDescription string `json:"app_description" binding:"max=100"`
-	RedirectURI    string `json:"redirect_uri" binding:"required,max=100,url"`
+	RedirectURI    string `json:"redirect_uri" binding:"omitempty,max=100,url"`
+	NotifyURL      string `json:"notify_url" binding:"required,max=100,url"`
 }
 
 type UpdateAPIKeyRequest struct {
@@ -46,6 +47,7 @@ type UpdateAPIKeyRequest struct {
 	AppHomepageURL string `json:"app_homepage_url" binding:"omitempty,max=100,url"`
 	AppDescription string `json:"app_description" binding:"omitempty,max=100"`
 	RedirectURI    string `json:"redirect_uri" binding:"omitempty,max=100,url"`
+	NotifyURL      string `json:"notify_url" binding:"omitempty,max=100,url"`
 }
 
 type APIKeyListResponse struct {
@@ -77,6 +79,7 @@ func CreateAPIKey(c *gin.Context) {
 		AppHomepageURL: req.AppHomepageURL,
 		AppDescription: req.AppDescription,
 		RedirectURI:    req.RedirectURI,
+		NotifyURL:      req.NotifyURL,
 	}
 
 	if err := db.DB(c.Request.Context()).Create(&apiKey).Error; err != nil {
@@ -147,6 +150,9 @@ func UpdateAPIKey(c *gin.Context) {
 	}
 	if req.RedirectURI != "" {
 		updates["redirect_uri"] = req.RedirectURI
+	}
+	if req.NotifyURL != "" {
+		updates["notify_url"] = req.NotifyURL
 	}
 
 	if len(updates) == 0 {
