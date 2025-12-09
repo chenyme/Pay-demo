@@ -37,7 +37,9 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/linux-do/pay/internal/apps/oauth"
+	"github.com/linux-do/pay/internal/common"
 	"github.com/linux-do/pay/internal/config"
+	"github.com/linux-do/pay/internal/service"
 	"github.com/linux-do/pay/internal/task"
 	"github.com/linux-do/pay/internal/task/schedule"
 
@@ -53,7 +55,7 @@ import (
 // PayOrderRequest 用户支付订单请求
 type PayOrderRequest struct {
 	OrderNo string `json:"order_no" binding:"required"`
-	PayKey  string `json:"pay_key" binding:"required,max=10"`
+	PayKey  string `json:"pay_key" binding:"required,max=6"`
 }
 
 // GetOrderRequest 查询订单请求
@@ -79,8 +81,8 @@ type TransferRequest struct {
 	RecipientID       uint64          `json:"recipient_id" binding:"required"`
 	RecipientUsername string          `json:"recipient_username" binding:"required"`
 	Amount            decimal.Decimal `json:"amount" binding:"required"`
-	PayKey            string          `json:"pay_key" binding:"required"`
-	Remark            string          `json:"remark"`
+	PayKey            string          `json:"pay_key" binding:"required,max=6"`
+	Remark            string          `json:"remark" binding:"max=100"`
 }
 
 // QueryOrderRequest 商户查询订单请求
@@ -259,12 +261,12 @@ func RefundMerchantOrder(c *gin.Context) {
 	}
 
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
-		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "msg": AmountMustBeGreaterThanZero})
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "msg": common.AmountMustBeGreaterThanZero})
 		return
 	}
 
 	if req.Amount.Exponent() < -2 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "msg": AmountDecimalPlacesExceeded})
+		c.JSON(http.StatusBadRequest, gin.H{"code": -1, "msg": common.AmountDecimalPlacesExceeded})
 		return
 	}
 
@@ -286,7 +288,7 @@ func RefundMerchantOrder(c *gin.Context) {
 		}
 
 		var payerUser model.User
-		if err := tx.Where("id = ?", order.PayerUserID).First(&payerUser).Error; err != nil {
+		if err := payerUser.GetByID(tx, order.PayerUserID); err != nil {
 			return err
 		}
 
@@ -410,7 +412,7 @@ func PayMerchantOrder(c *gin.Context) {
 	}
 
 	if subtle.ConstantTimeCompare([]byte(orderCtx.CurrentUser.PayKey), []byte(req.PayKey)) != 1 {
-		c.JSON(http.StatusBadRequest, util.Err(PayKeyIncorrect))
+		c.JSON(http.StatusBadRequest, util.Err(common.PayKeyIncorrect))
 		return
 	}
 
@@ -431,59 +433,13 @@ func PayMerchantOrder(c *gin.Context) {
 				return errors.New(OrderExpired)
 			}
 
-			// 查询当前用户余额（确保数据最新）
-			var currentUserInTx model.User
-			if err := tx.Where("id = ?", orderCtx.CurrentUser.ID).First(&currentUserInTx).Error; err != nil {
+			// 检查每日限额
+			if err := service.CheckDailyLimit(tx, orderCtx.CurrentUser.ID, order.Amount, orderCtx.PayerPayConfig.DailyLimit); err != nil {
 				return err
 			}
 
-			// 检查余额是否足够
-			if currentUserInTx.AvailableBalance.LessThan(order.Amount) {
-				return errors.New(InsufficientBalance)
-			}
-
-			// 检查每日限额
-			if orderCtx.PayerPayConfig.DailyLimit != nil && *orderCtx.PayerPayConfig.DailyLimit > 0 {
-				now := time.Now()
-				datePart := int64(now.Year()*10000 + int(now.Month())*100 + now.Day())
-				// 使用 100000000 (1亿) 作为乘数，确保日期部分（8位）不会与用户ID冲突
-				lockID := int64(orderCtx.CurrentUser.ID)*100000000 + datePart
-
-				if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", lockID).Error; err != nil {
-					return err
-				}
-
-				// 获取今天的开始和结束时间
-				todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-				todayEnd := todayStart.Add(24 * time.Hour)
-
-				// 统计当日成功支付的订单总金额
-				var todayTotalAmount decimal.Decimal
-				if err := tx.Model(&model.Order{}).
-					Where("payer_user_id = ? AND status = ? AND type = ? AND trade_time >= ? AND trade_time < ?",
-						orderCtx.CurrentUser.ID,
-						model.OrderStatusSuccess,
-						model.OrderTypePayment,
-						todayStart,
-						todayEnd).
-					Select("COALESCE(SUM(amount), 0)").
-					Scan(&todayTotalAmount).Error; err != nil {
-					return err
-				}
-
-				// 检查当日总金额 + 当前订单金额是否超过限额
-				dailyLimitDecimal := decimal.NewFromInt(*orderCtx.PayerPayConfig.DailyLimit)
-				if todayTotalAmount.Add(order.Amount).GreaterThan(dailyLimitDecimal) {
-					return errors.New(DailyLimitExceeded)
-				}
-			}
-
-			// 计算手续费：订单金额 * 商家的费率，保留两位小数
-			fee := order.Amount.Mul(orderCtx.MerchantPayConfig.FeeRate).Round(2)
-			// 商户实际收到金额：订单金额 - 手续费
-			merchantAmount := order.Amount.Sub(fee)
-
-			feePercent := orderCtx.MerchantPayConfig.FeeRate.Mul(decimal.NewFromInt(100)).IntPart()
+			// 计算手续费
+			_, merchantAmount, feePercent := service.CalculateFee(order.Amount, orderCtx.MerchantPayConfig.FeeRate)
 			feeRemark := fmt.Sprintf("[系统]: 收取商家%d%%手续费", feePercent)
 
 			// 更新订单状态和备注
@@ -500,31 +456,13 @@ func PayMerchantOrder(c *gin.Context) {
 			}
 
 			// 扣减用户余额
-			result := tx.Model(&model.User{}).
-				Where("id = ? AND available_balance >= ?", orderCtx.CurrentUser.ID, order.Amount).
-				UpdateColumns(map[string]interface{}{
-					"available_balance": gorm.Expr("available_balance - ?", order.Amount),
-					"total_payment":     gorm.Expr("total_payment + ?", order.Amount),
-					"pay_score":         gorm.Expr("pay_score + ?", order.Amount.Round(0).IntPart()),
-				})
-			if result.Error != nil {
-				return result.Error
-			}
-
-			// 检查是否成功扣减
-			if result.RowsAffected == 0 {
-				return errors.New(InsufficientBalance)
+			if err := service.DeductUserBalance(tx, orderCtx.CurrentUser.ID, order.Amount); err != nil {
+				return err
 			}
 
 			// 增加商户余额和积分
 			merchantScoreIncrease := order.Amount.Mul(orderCtx.MerchantPayConfig.ScoreRate).Round(0).IntPart()
-			if err := tx.Model(&model.User{}).
-				Where("id = ?", orderCtx.MerchantUser.ID).
-				UpdateColumns(map[string]interface{}{
-					"available_balance": gorm.Expr("available_balance + ?", merchantAmount),
-					"total_receive":     gorm.Expr("total_receive + ?", merchantAmount),
-					"pay_score":         gorm.Expr("pay_score + ?", merchantScoreIncrease),
-				}).Error; err != nil {
+			if err := service.AddMerchantBalance(tx, orderCtx.MerchantUser.ID, merchantAmount, merchantScoreIncrease); err != nil {
 				return err
 			}
 
@@ -551,14 +489,14 @@ func PayMerchantOrder(c *gin.Context) {
 		},
 	); err != nil {
 		errMsg := err.Error()
-		if errMsg == InsufficientBalance {
-			c.JSON(http.StatusBadRequest, util.Err(InsufficientBalance))
+		if errMsg == common.InsufficientBalance {
+			c.JSON(http.StatusBadRequest, util.Err(common.InsufficientBalance))
 		} else if errMsg == OrderNotFound {
 			c.JSON(http.StatusNotFound, util.Err(OrderNotFound))
 		} else if errMsg == OrderExpired {
 			c.JSON(http.StatusBadRequest, util.Err(OrderExpired))
-		} else if errMsg == DailyLimitExceeded {
-			c.JSON(http.StatusBadRequest, util.Err(DailyLimitExceeded))
+		} else if errMsg == common.DailyLimitExceeded {
+			c.JSON(http.StatusBadRequest, util.Err(common.DailyLimitExceeded))
 		} else {
 			c.JSON(http.StatusInternalServerError, util.Err(errMsg))
 		}
@@ -583,19 +521,19 @@ func Transfer(c *gin.Context) {
 	}
 
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
-		c.JSON(http.StatusBadRequest, util.Err(AmountMustBeGreaterThanZero))
+		c.JSON(http.StatusBadRequest, util.Err(common.AmountMustBeGreaterThanZero))
 		return
 	}
 
 	if req.Amount.Exponent() < -2 {
-		c.JSON(http.StatusBadRequest, util.Err(AmountDecimalPlacesExceeded))
+		c.JSON(http.StatusBadRequest, util.Err(common.AmountDecimalPlacesExceeded))
 		return
 	}
 
 	currentUser, _ := util.GetFromContext[*model.User](c, oauth.UserObjKey)
 
 	if subtle.ConstantTimeCompare([]byte(currentUser.PayKey), []byte(req.PayKey)) != 1 {
-		c.JSON(http.StatusBadRequest, util.Err(PayKeyIncorrect))
+		c.JSON(http.StatusBadRequest, util.Err(common.PayKeyIncorrect))
 		return
 	}
 
@@ -623,7 +561,7 @@ func Transfer(c *gin.Context) {
 			}
 
 			if payer.AvailableBalance.LessThan(req.Amount) {
-				return errors.New(InsufficientBalance)
+				return errors.New(common.InsufficientBalance)
 			}
 
 			// 创建转账订单

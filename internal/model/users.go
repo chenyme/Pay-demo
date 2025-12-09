@@ -90,7 +90,7 @@ type User struct {
 	UpdatedAt        time.Time       `json:"updated_at" gorm:"autoUpdateTime;index"`
 }
 
-func (u *User) Exact(tx *gorm.DB, id uint64) error {
+func (u *User) GetByID(tx *gorm.DB, id uint64) error {
 	if err := tx.Where("id = ?", id).First(u).Error; err != nil {
 		return err
 	}

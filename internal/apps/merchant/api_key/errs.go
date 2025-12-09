@@ -22,10 +22,9 @@
  * SOFTWARE.
  */
 
-package merchant
+package api_key
 
 const (
-	APIKeyNotFound      = "API Key 不存在"
-	NoFieldsToUpdate    = "没有需要更新的字段"
-	PaymentLinkNotFound = "支付链接不存在"
+	APIKeyNotFound   = "API Key 不存在"
+	NoFieldsToUpdate = "没有需要更新的字段"
 )

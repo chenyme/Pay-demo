@@ -104,7 +104,7 @@ func HandleUpdateSingleUserGamificationScore(ctx context.Context, t *asynq.Task)
 	}
 
 	var user model.User
-	if err := db.DB(ctx).Where("id = ?", payload.UserID).First(&user).Error; err != nil {
+	if err := user.GetByID(db.DB(ctx), payload.UserID); err != nil {
 		return fmt.Errorf("查询用户ID[%d]失败: %w", payload.UserID, err)
 	}
 

@@ -25,5 +25,6 @@
 package merchant
 
 const (
-	APIKeyObjKey = "merchant_api_key_obj"
+	APIKeyObjKey      = "merchant_api_key_obj"
+	PaymentLinkObjKey = "payment_link_obj"
 )

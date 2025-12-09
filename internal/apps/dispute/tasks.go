@@ -134,10 +134,10 @@ func HandleAutoRefundSingleDispute(ctx context.Context, t *asynq.Task) error {
 
 		// 获取付款方和收款方用户
 		var payerUser, payeeUser model.User
-		if err := tx.Where("id = ?", order.PayerUserID).First(&payerUser).Error; err != nil {
+		if err := payerUser.GetByID(tx, order.PayerUserID); err != nil {
 			return fmt.Errorf("查询付款方用户失败: %w", err)
 		}
-		if err := tx.Where("id = ?", order.PayeeUserID).First(&payeeUser).Error; err != nil {
+		if err := payeeUser.GetByID(tx, order.PayeeUserID); err != nil {
 			return fmt.Errorf("查询收款方用户失败: %w", err)
 		}
 

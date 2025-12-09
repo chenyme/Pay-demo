@@ -91,6 +91,34 @@ definitions:
     - dispute_id
     - status
     type: object
+  link.CreatePaymentLinkRequest:
+    properties:
+      amount:
+        type: number
+      product_name:
+        maxLength: 30
+        type: string
+      remark:
+        maxLength: 100
+        type: string
+    required:
+    - amount
+    - product_name
+    type: object
+  link.PayByLinkRequest:
+    properties:
+      pay_key:
+        maxLength: 6
+        type: string
+      remark:
+        maxLength: 100
+        type: string
+      token:
+        type: string
+    required:
+    - pay_key
+    - token
+    type: object
   model.PayLevel:
     enum:
     - 0
@@ -156,7 +184,7 @@ definitions:
       payment_type:
         type: string
       remark:
-        maxLength: 200
+        maxLength: 100
         type: string
     required:
     - amount
@@ -167,7 +195,7 @@ definitions:
       order_no:
         type: string
       pay_key:
-        maxLength: 10
+        maxLength: 6
         type: string
     required:
     - order_no
@@ -241,12 +269,14 @@ definitions:
       amount:
         type: number
       pay_key:
+        maxLength: 6
         type: string
       recipient_id:
         type: integer
       recipient_username:
         type: string
       remark:
+        maxLength: 100
         type: string
     required:
     - amount
@@ -283,7 +313,7 @@ definitions:
   user.UpdatePayKeyRequest:
     properties:
       pay_key:
-        maxLength: 10
+        maxLength: 6
         type: string
     required:
     - pay_key
@@ -703,6 +733,12 @@ paths:
         name: id
         required: true
         type: integer
+      - description: 创建支付链接请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/link.CreatePaymentLinkRequest'
       produces:
       - application/json
       responses:
@@ -756,6 +792,26 @@ paths:
             $ref: '#/definitions/util.ResponseAny'
       tags:
       - payment
+  /api/v1/merchant/payment-links/pay:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 支付请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/link.PayByLinkRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/util.ResponseAny'
+      tags:
+      - merchant
   /api/v1/merchant/payment/order:
     get:
       consumes:

@@ -98,8 +98,8 @@ func doOAuth(ctx context.Context, code string) (*model.User, error) {
 
 	txByUsername := db.DB(ctx).Where("username = ?", userInfo.Username).First(&user)
 	if txByUsername.Error != nil {
-		txByID := db.DB(ctx).Where("id = ?", userInfo.Id).First(&user)
-		if txByID.Error == nil {
+		txByID := user.GetByID(db.DB(ctx), userInfo.Id)
+		if txByID == nil {
 			// ID 存在但 username 不匹配(用户改名)
 			if err = user.CheckActive(); err != nil {
 				span.SetStatus(codes.Error, err.Error())

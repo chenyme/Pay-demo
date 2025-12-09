@@ -301,7 +301,7 @@ func RefundReview(c *gin.Context) {
 
 			if status == model.DisputeStatusRefund {
 				var payerUser model.User
-				if err := tx.Where("id = ?", order.PayerUserID).First(&payerUser).Error; err != nil {
+				if err := payerUser.GetByID(tx, order.PayerUserID); err != nil {
 					return err
 				}
 

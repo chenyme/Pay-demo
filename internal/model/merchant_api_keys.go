@@ -44,3 +44,13 @@ type MerchantAPIKey struct {
 	UpdatedAt      time.Time      `json:"updated_at" gorm:"autoUpdateTime"`
 	DeletedAt      gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
+
+// GetByID 通过 ID 查询商户 API Key
+func (m *MerchantAPIKey) GetByID(tx *gorm.DB, id uint64) error {
+	return tx.Where("id = ?", id).First(m).Error
+}
+
+// GetByClientID 通过 ClientID 查询商户 API Key
+func (m *MerchantAPIKey) GetByClientID(tx *gorm.DB, clientID string) error {
+	return tx.Where("client_id = ?", clientID).First(m).Error
+}
