@@ -43,7 +43,7 @@ func RequireAPIKey() gin.HandlerFunc {
 		if err := db.DB(c.Request.Context()).
 			Where("id = ? AND user_id = ?", c.Param("id"), user.ID).
 			First(&apiKey).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, util.Err(merchant.APIKeyNotFound))
+			c.AbortWithStatusJSON(http.StatusNotFound, util.Err(APIKeyNotFound))
 			return
 		}
 

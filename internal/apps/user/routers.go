@@ -36,7 +36,7 @@ import (
 
 // UpdatePayKeyRequest 更新支付密钥请求
 type UpdatePayKeyRequest struct {
-	PayKey string `json:"pay_key" binding:"required,max=10"`
+	PayKey string `json:"pay_key" binding:"required,max=6"`
 }
 
 // UpdatePayKey 更新用户支付密钥

@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/linux-do/pay/internal/apps/oauth"
+	"github.com/linux-do/pay/internal/common"
 	"github.com/linux-do/pay/internal/db"
 	"github.com/linux-do/pay/internal/model"
 	"github.com/linux-do/pay/internal/util"
@@ -169,15 +170,15 @@ func VerifySignature(c *gin.Context, apiKey *model.MerchantAPIKey) (*CreateOrder
 
 	// 验证金额必须大于0
 	if req.Amount.LessThanOrEqual(decimal.Zero) {
-		return nil, errors.New(AmountMustBeGreaterThanZero)
+		return nil, errors.New(common.AmountMustBeGreaterThanZero)
 	}
 
 	// 验证小数位数不超过2位
 	if req.Amount.Exponent() < -2 {
-		return nil, errors.New(AmountDecimalPlacesExceeded)
+		return nil, errors.New(common.AmountDecimalPlacesExceeded)
 	}
 
-	if err := db.DB(c.Request.Context()).Where("client_id = ?", req.ClientID).First(&apiKey).Error; err != nil {
+	if err := apiKey.GetByClientID(db.DB(c.Request.Context()), req.ClientID); err != nil {
 		return nil, err
 	}
 

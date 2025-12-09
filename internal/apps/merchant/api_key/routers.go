@@ -157,7 +157,7 @@ func UpdateAPIKey(c *gin.Context) {
 	}
 
 	if len(updates) == 0 {
-		c.JSON(http.StatusBadRequest, util.Err(merchant.NoFieldsToUpdate))
+		c.JSON(http.StatusBadRequest, util.Err(NoFieldsToUpdate))
 		return
 	}
 

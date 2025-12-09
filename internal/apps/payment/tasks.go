@@ -68,7 +68,7 @@ func HandleMerchantPaymentNotify(ctx context.Context, t *asynq.Task) error {
 
 	// 查询商户API Key信息
 	var apiKey model.MerchantAPIKey
-	if err := db.DB(ctx).Where("client_id = ?", payload.ClientID).First(&apiKey).Error; err != nil {
+	if err := apiKey.GetByClientID(db.DB(ctx), payload.ClientID); err != nil {
 		logger.ErrorF(ctx, "查询商户[ClientID:%s]失败: %v", payload.ClientID, err)
 		return fmt.Errorf("查询商户信息失败: %w", err)
 	}

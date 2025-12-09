@@ -58,3 +58,8 @@ func (upc *UserPayConfig) GetByPayScore(tx *gorm.DB, payScore int64) error {
 		Where("max_score IS NULL OR max_score > ?", payScore).
 		First(upc).Error
 }
+
+// GetByID 通过 ID 查询支付配置
+func (upc *UserPayConfig) GetByID(tx *gorm.DB, id uint64) error {
+	return tx.Where("id = ?", id).First(upc).Error
+}

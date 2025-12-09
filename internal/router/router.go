@@ -179,6 +179,9 @@ func Serve() {
 					}
 				}
 
+				// 通过支付链接支付
+				merchantRouter.POST("/payment-links/pay", oauth.LoginRequired(), link.PayByLink)
+
 				// MerchantAPIKey Payment
 				MerchantPaymentRouter := merchantRouter.Group("/payment")
 				{

@@ -22,17 +22,29 @@
  * SOFTWARE.
  */
 
-package payment
+package link
 
-const (
-	OrderNotFound            = "订单不存在或已完成"
-	OrderStatusInvalid       = "订单状态不允许支付"
-	OrderExpired             = "订单已过期"
-	MerchantInfoNotFound     = "商户信息不存在"
-	RecipientNotFound        = "收款人不存在"
-	OrderNoFormatError       = "订单号格式错误"
-	CannotPayOwnOrder        = "不能支付自己的订单"
-	CannotTransferToSelf     = "不能转账给自己"
-	PayConfigNotFound        = "支付配置不存在"
-	SystemConfigValueInvalid = "系统配置 %s 的值无法转换为整数: %v"
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/linux-do/pay/internal/apps/merchant"
+	"github.com/linux-do/pay/internal/db"
+	"github.com/linux-do/pay/internal/model"
+	"github.com/linux-do/pay/internal/util"
 )
+
+// RequirePaymentLink 根据 Token 查询支付链接并保存到上下文
+func RequirePaymentLink() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var paymentLink model.MerchantPaymentLink
+		if err := paymentLink.GetByToken(db.DB(c.Request.Context()), c.Param("token")); err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, util.Err(PaymentLinkNotFound))
+			return
+		}
+
+		util.SetToContext(c, merchant.PaymentLinkObjKey, &paymentLink)
+
+		c.Next()
+	}
+}

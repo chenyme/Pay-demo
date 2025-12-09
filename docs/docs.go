@@ -594,6 +594,15 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "创建支付链接请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/link.CreatePaymentLinkRequest"
+                        }
                     }
                 ],
                 "responses": {
@@ -661,6 +670,38 @@ const docTemplate = `{
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/payment.PayOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.ResponseAny"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/merchant/payment-links/pay": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "merchant"
+                ],
+                "parameters": [
+                    {
+                        "description": "支付请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/link.PayByLinkRequest"
                         }
                     }
                 ],
@@ -1204,6 +1245,46 @@ const docTemplate = `{
                 }
             }
         },
+        "link.CreatePaymentLinkRequest": {
+            "type": "object",
+            "required": [
+                "amount",
+                "product_name"
+            ],
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "product_name": {
+                    "type": "string",
+                    "maxLength": 30
+                },
+                "remark": {
+                    "type": "string",
+                    "maxLength": 100
+                }
+            }
+        },
+        "link.PayByLinkRequest": {
+            "type": "object",
+            "required": [
+                "pay_key",
+                "token"
+            ],
+            "properties": {
+                "pay_key": {
+                    "type": "string",
+                    "maxLength": 6
+                },
+                "remark": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
         "model.PayLevel": {
             "type": "integer",
             "format": "int32",
@@ -1297,7 +1378,7 @@ const docTemplate = `{
                 },
                 "remark": {
                     "type": "string",
-                    "maxLength": 200
+                    "maxLength": 100
                 }
             }
         },
@@ -1313,7 +1394,7 @@ const docTemplate = `{
                 },
                 "pay_key": {
                     "type": "string",
-                    "maxLength": 10
+                    "maxLength": 6
                 }
             }
         },
@@ -1418,7 +1499,8 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "pay_key": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 6
                 },
                 "recipient_id": {
                     "type": "integer"
@@ -1427,7 +1509,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "remark": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 100
                 }
             }
         },
@@ -1476,7 +1559,7 @@ const docTemplate = `{
             "properties": {
                 "pay_key": {
                     "type": "string",
-                    "maxLength": 10
+                    "maxLength": 6
                 }
             }
         },

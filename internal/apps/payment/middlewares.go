@@ -42,7 +42,7 @@ type CreateOrderRequest struct {
 	OrderName       string          `json:"order_name" binding:"required,max=64"`
 	MerchantOrderNo string          `json:"merchant_order_no"`
 	Amount          decimal.Decimal `json:"amount" binding:"required"`
-	Remark          string          `json:"remark" binding:"max=200"`
+	Remark          string          `json:"remark" binding:"max=100"`
 	PaymentType     string          `json:"payment_type"`
 }
 
